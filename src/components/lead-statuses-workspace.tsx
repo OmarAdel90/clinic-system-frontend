@@ -51,6 +51,36 @@ function toForm(row?: LeadStatus | null): StatusForm {
   };
 }
 
+function buildStatusPatchPayload(selectedRow: LeadStatus, editForm: StatusForm) {
+  const payload: Record<string, string | number | boolean | null> = {};
+
+  if (editForm.label !== selectedRow.label) {
+    payload.label = editForm.label;
+  }
+
+  if ((editForm.key || "") !== (selectedRow.key || "")) {
+    payload.key = editForm.key || null;
+  }
+
+  if ((editForm.color || "") !== (selectedRow.color || "")) {
+    payload.color = editForm.color || null;
+  }
+
+  if ((editForm.is_qualified === "true") !== Boolean(selectedRow.is_qualified)) {
+    payload.is_qualified = editForm.is_qualified === "true";
+  }
+
+  if ((editForm.is_active === "true") !== (selectedRow.is_active ?? true)) {
+    payload.is_active = editForm.is_active === "true";
+  }
+
+  if (Number(editForm.sort_order || 0) !== (selectedRow.sort_order ?? 0)) {
+    payload.sort_order = Number(editForm.sort_order || 0);
+  }
+
+  return payload;
+}
+
 export function LeadStatusesWorkspace() {
   const [rows, setRows] = useState<LeadStatus[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -139,19 +169,18 @@ export function LeadStatusesWorkspace() {
     event.preventDefault();
     if (!selectedRow) return;
 
+    const payload = buildStatusPatchPayload(selectedRow, editForm);
+    if (Object.keys(payload).length === 0) {
+      setNotice("No changes to save.");
+      return;
+    }
+
     setSavingEdit(true);
     setError(null);
     setNotice(null);
 
     try {
-      await mutateJson<LeadStatus>(`/lead-statuses/${selectedRow.id}`, "PATCH", {
-        label: editForm.label,
-        key: editForm.key || null,
-        color: editForm.color || null,
-        is_qualified: editForm.is_qualified === "true",
-        is_active: editForm.is_active === "true",
-        sort_order: Number(editForm.sort_order || 0),
-      });
+      await mutateJson<LeadStatus>(`/lead-statuses/${selectedRow.id}`, "PATCH", payload);
       setNotice(`Status \"${editForm.label}\" updated successfully.`);
       await load();
     } catch (err) {
@@ -224,7 +253,7 @@ export function LeadStatusesWorkspace() {
                         <div className="flex items-center gap-3">
                           <div className="h-3 w-3 rounded-full border border-black/10" style={{ backgroundColor: row.color || "#94a3b8" }} />
                           <div className="text-sm font-semibold">{row.label}</div>
-                          <StatusBadge value={row.is_active ? "active" : "inactive"} />
+                          <StatusBadge value={row.is_active ? "active" : "inactive"} color={row.is_active ? row.color : null} />
                         </div>
                         <div className={`mt-2 grid gap-2 text-xs md:grid-cols-2 ${active ? "text-slate-300" : "text-slate-500"}`}>
                           <div>Key: {row.key || "-"}</div>
@@ -273,7 +302,7 @@ export function LeadStatusesWorkspace() {
           <Panel title="Edit Selected Status" description="Update the currently selected status without leaving the CRM admin flow.">
             {selectedRow ? (
               <form className="space-y-4" onSubmit={handleUpdate}>
-                <WorkflowInput label="Label" name="edit-label" value={editForm.label} onChange={(value) => setEditForm((current) => ({ ...current, label: value }))} required />
+                <WorkflowInput label="Label" name="edit-label" value={editForm.label} onChange={(value) => setEditForm((current) => ({ ...current, label: value }))} />
                 <WorkflowInput label="Key" name="edit-key" value={editForm.key} onChange={(value) => setEditForm((current) => ({ ...current, key: value }))} />
                 <div className="grid gap-4 md:grid-cols-2">
                   <WorkflowInput label="Color" name="edit-color" value={editForm.color} onChange={(value) => setEditForm((current) => ({ ...current, color: value }))} />

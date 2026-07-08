@@ -35,6 +35,10 @@ function getLeadStatusDisplay(lead: Lead) {
   return lead.lead_status?.label || lead.lead_status?.key || String(lead.lead_status_id ?? "new");
 }
 
+function getLeadStatusColor(lead: Lead) {
+  return lead.lead_status?.color || null;
+}
+
 export function LeadsWorkspaceV2() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -306,7 +310,7 @@ export function LeadsWorkspaceV2() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <StatusBadge value={getLeadStatusDisplay(lead)} />
+                        <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
                         <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
                       </div>
                     </div>
@@ -333,7 +337,7 @@ export function LeadsWorkspaceV2() {
                       <div className="text-sm font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
                       <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} | {selectedLead.platform || "Unknown channel"}</div>
                     </div>
-                    <StatusBadge value={getLeadStatusDisplay(selectedLead)} />
+                    <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
                   </div>
 
                   <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">

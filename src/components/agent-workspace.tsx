@@ -21,6 +21,10 @@ function getLeadStatusDisplay(lead: Lead) {
   return lead.lead_status?.label || lead.lead_status?.key || String(lead.lead_status_id ?? "new");
 }
 
+function getLeadStatusColor(lead: Lead) {
+  return lead.lead_status?.color || null;
+}
+
 export function AgentWorkspace() {
   const [metrics, setMetrics] = useState<AgentMetrics | null>(null);
   const [followups, setFollowups] = useState<FollowUp[]>([]);
@@ -427,7 +431,7 @@ export function AgentWorkspace() {
                   <div className="text-sm font-semibold text-slate-950">{lead.name || lead.profile_name || `Lead #${lead.id}`}</div>
                   <div className="mt-2 text-sm text-slate-600">{lead.phone || "No phone"} | {lead.platform || "Unknown channel"}</div>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <StatusBadge value={getLeadStatusDisplay(lead)} />
+                    <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
                     <span className="text-xs text-slate-500">Created {formatLocalDateTime(lead.created_at)}</span>
                   </div>
                 </div>

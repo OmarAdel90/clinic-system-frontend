@@ -1,5 +1,6 @@
-type StatusBadgeProps = {
+﻿type StatusBadgeProps = {
   value?: string | null;
+  color?: string | null;
 };
 
 const colorMap: Record<string, string> = {
@@ -16,14 +17,20 @@ const colorMap: Record<string, string> = {
   unpaid: "bg-rose-100 text-rose-700",
   partial: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
+  active: "bg-emerald-100 text-emerald-700",
+  inactive: "bg-slate-100 text-slate-700",
 };
 
-export function StatusBadge({ value }: StatusBadgeProps) {
+export function StatusBadge({ value, color }: StatusBadgeProps) {
   const normalized = value?.toLowerCase() ?? "unknown";
-  const classes = colorMap[normalized] ?? "bg-slate-100 text-slate-700";
+  const classes = color ? "text-white" : colorMap[normalized] ?? "bg-slate-100 text-slate-700";
+  const style = color ? { backgroundColor: color } : undefined;
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${classes}`}>
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${classes}`}
+      style={style}
+    >
       {value ?? "Unknown"}
     </span>
   );
