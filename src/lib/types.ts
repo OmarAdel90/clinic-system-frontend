@@ -140,4 +140,9 @@ export type LeadStatus = {
   label: string;
   key?: string;
   color?: string | null;
+  is_qualified?: boolean;
+  is_active?: boolean;
+  sort_order?: number;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
