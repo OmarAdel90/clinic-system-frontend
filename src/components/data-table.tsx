@@ -1,3 +1,4 @@
+﻿import { formatLocalDateTime, looksLikeDateKey, looksLikeDateValue } from "@/lib/time";
 import type { ApiRecord } from "@/lib/types";
 
 type DataTableProps = {
@@ -7,9 +8,13 @@ type DataTableProps = {
   preferredKeys?: string[];
 };
 
-function stringifyValue(value: unknown) {
+function stringifyValue(column: string, value: unknown) {
   if (value === null || value === undefined) {
-    return "—";
+    return "-";
+  }
+
+  if (looksLikeDateKey(column) || looksLikeDateValue(value)) {
+    return formatLocalDateTime(String(value));
   }
 
   if (typeof value === "string" || typeof value === "number") {
@@ -21,7 +26,7 @@ function stringifyValue(value: unknown) {
   }
 
   if (Array.isArray(value)) {
-    return value.length ? `${value.length} items` : "—";
+    return value.length ? `${value.length} items` : "-";
   }
 
   if (typeof value === "object") {
@@ -72,7 +77,7 @@ export function DataTable({
                 <tr key={String(row.id ?? index)} className="align-top">
                   {columns.map((column) => (
                     <td key={column} className="px-5 py-4 text-sm text-slate-700">
-                      {stringifyValue(row[column])}
+                      {stringifyValue(column, row[column])}
                     </td>
                   ))}
                 </tr>

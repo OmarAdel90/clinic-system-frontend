@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { fetchCollection, fetchResource } from "@/lib/api";
@@ -46,7 +46,7 @@ export default function DashboardPage() {
       }
     }
 
-    load();
+    void load();
   }, []);
 
   return (
@@ -74,7 +74,7 @@ export default function DashboardPage() {
           title="Recent Leads"
           description="Lead pipeline entries coming from the CRM module."
           rows={state.leads.slice(0, 6)}
-          preferredKeys={["id", "name", "phone", "platform", "lead_status_id"]}
+          preferredKeys={["id", "name", "phone", "platform", "lead_status_id", "created_at"]}
         />
         <DataTable
           title="Recent Visits"
@@ -93,7 +93,7 @@ export default function DashboardPage() {
           <div className="space-y-3 px-5 py-5">
             {state.followups.slice(0, 5).map((followup) => (
               <div key={followup.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                <div className="text-sm font-semibold text-slate-950">{followup.conversation?.lead?.name || `Lead #${followup.conversation?.lead_id ?? "—"}`}</div>
+                <div className="text-sm font-semibold text-slate-950">{followup.conversation?.lead?.name || `Lead #${followup.conversation?.lead_id ?? "-"}`}</div>
                 <div className="mt-2 text-sm text-slate-600">{followup.body || "No follow-up body provided."}</div>
                 <div className="mt-3 text-xs text-slate-500">Due {formatLocalDateTime(followup.due_at)}</div>
               </div>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-600">Live operational metrics for the authenticated user.</p>
           </div>
           <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-            <StatCard label="Average Response" value={state.metrics?.average_response_time ? `${state.metrics.average_response_time} min` : "—"} hint="Average first response time from inbound to outbound reply." />
+            <StatCard label="Average Response" value={state.metrics?.average_response_time ? `${state.metrics.average_response_time} min` : "-"} hint="Average first response time from inbound to outbound reply." />
             <StatCard label="Attendance" value={state.metrics?.total_customer_attendance ?? 0} hint="Completed patient visits linked to the current operator." />
           </div>
         </section>

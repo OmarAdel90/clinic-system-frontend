@@ -1,4 +1,4 @@
-export type ApiRecord = Record<string, unknown>;
+﻿export type ApiRecord = Record<string, unknown>;
 
 export type Role = {
   id: number;
@@ -40,6 +40,7 @@ export type Lead = {
   clinic_assigned_at?: string | null;
   lead_status_id?: number | null;
   profile_name?: string | null;
+  whatsapp_id?: string | null;
   created_at?: string | null;
   clinic?: Clinic | null;
   assignment_state?: AssignmentState | null;
@@ -65,6 +66,7 @@ export type Conversation = {
   lead_id?: number | null;
   assigned_user_id?: number | null;
   platform?: string | null;
+  status?: string | null;
   last_message_time?: string | null;
   first_message_time?: string | null;
   lead_status?: string | null;
@@ -72,8 +74,21 @@ export type Conversation = {
   lead?: Lead | null;
 };
 
+export type MessageRecord = {
+  id: number;
+  body?: string | null;
+  type?: string | null;
+  direction?: string | null;
+  media_url?: string | null;
+  media_caption?: string | null;
+  sent_at?: string | null;
+  created_at?: string | null;
+  user?: User | null;
+};
+
 export type FollowUp = {
   id: number;
+  user_id?: number | null;
   body?: string | null;
   due_at?: string | null;
   completed_at?: string | null;

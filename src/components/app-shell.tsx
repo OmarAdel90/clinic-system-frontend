@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,6 +11,8 @@ type AppShellProps = {
   user: User;
   children: React.ReactNode;
 };
+
+const DEPLOY_MARKER = "Build 2026-07-08A";
 
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
@@ -37,6 +39,9 @@ export function AppShell({ user, children }: AppShellProps) {
                 Clinic System
               </p>
               <h1 className="mt-2 text-xl font-semibold text-slate-950">Operations CRM</h1>
+              <div className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                {DEPLOY_MARKER}
+              </div>
             </div>
             <div className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-medium text-slate-600">
               {user.roles?.[0]?.name ?? "staff"}
