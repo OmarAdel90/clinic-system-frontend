@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@/lib/api";
 import { saveSession } from "@/lib/auth";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("super@clinic.com");
   const [password, setPassword] = useState("password123");
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +21,8 @@ export function LoginForm() {
     try {
       const payload = await login(email, password);
       saveSession(payload);
-      router.push("/dashboard");
+      const nextPath = searchParams.get("next") || "/dashboard";
+      router.push(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {

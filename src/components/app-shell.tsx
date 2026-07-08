@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { navItems } from "@/lib/navigation";
-import { clearSession } from "@/lib/auth";
+import { canAccess, clearSession } from "@/lib/auth";
 import { logout } from "@/lib/api";
 import type { User } from "@/lib/types";
 
@@ -49,7 +49,7 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
 
           <nav className="mt-4 space-y-1">
-            {navItems.map((item) => {
+            {navItems.filter((item) => canAccess(user, item.roles)).map((item) => {
               const active = pathname === item.href;
 
               return (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchMe } from "@/lib/api";
-import { clearSession, getToken, saveSession } from "@/lib/auth";
+import { clearSession, getToken, getUser, saveSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
 
 type AuthGuardProps = {
@@ -13,14 +13,15 @@ type AuthGuardProps = {
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => getUser());
+  const [loading, setLoading] = useState(() => Boolean(getToken()));
 
   useEffect(() => {
     async function bootstrap() {
       const token = getToken();
       if (!token) {
         router.replace("/login");
+        setLoading(false);
         return;
       }
 
@@ -36,7 +37,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       }
     }
 
-    bootstrap();
+    void bootstrap();
   }, [pathname, router]);
 
   if (loading || !user) {

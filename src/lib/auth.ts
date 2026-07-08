@@ -55,3 +55,11 @@ export function clearSession() {
 export function hasRole(user: User | null, roleName: string) {
   return Boolean(user?.roles?.some((role) => role.name === roleName));
 }
+
+export function canAccess(user: User | null, allowedRoles?: string[]) {
+  if (!allowedRoles || allowedRoles.length === 0) {
+    return true;
+  }
+
+  return allowedRoles.some((role) => hasRole(user, role));
+}

@@ -10,6 +10,16 @@ export const navItems: NavItem[] = [
   { label: "Suppliers", href: "/suppliers", description: "Vendors and supplier payments" },
   { label: "Campaigns", href: "/campaigns", description: "Marketing performance" },
   { label: "Pharmaceuticals", href: "/pharmaceuticals", description: "Medication catalog" },
-  { label: "Users", href: "/users", description: "Team members and access" },
-  { label: "Roles", href: "/roles", description: "Permissions and RBAC" },
+  {
+    label: "Users",
+    href: "/users",
+    description: "Team members and access",
+    roles: ["admin"],
+  },
+  {
+    label: "Roles",
+    href: "/roles",
+    description: "Permissions and RBAC",
+    roles: ["admin"],
+  },
 ];
