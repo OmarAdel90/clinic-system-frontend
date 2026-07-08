@@ -36,9 +36,15 @@ export type Lead = {
   phone?: string | null;
   platform?: string | null;
   campaign_id?: number | null;
+  clinic_id?: number | null;
+  clinic_assigned_at?: string | null;
   lead_status_id?: number | null;
   profile_name?: string | null;
   created_at?: string | null;
+  clinic?: Clinic | null;
+  assignment_state?: AssignmentState | null;
+  lead_status?: LeadStatus | null;
+  conversations?: Conversation[];
 };
 
 export type Visit = {
@@ -52,6 +58,45 @@ export type Visit = {
   services_cost?: number | null;
   supplies_cost?: number | null;
   total_cost?: number | null;
+};
+
+export type Conversation = {
+  id: number;
+  lead_id?: number | null;
+  assigned_user_id?: number | null;
+  platform?: string | null;
+  last_message_time?: string | null;
+  first_message_time?: string | null;
+  lead_status?: string | null;
+  converted_at?: string | null;
+  lead?: Lead | null;
+};
+
+export type FollowUp = {
+  id: number;
+  body?: string | null;
+  due_at?: string | null;
+  completed_at?: string | null;
+  conversation?: Conversation | null;
+};
+
+export type AssignmentState = {
+  lead_id: number;
+  user_id: number;
+  user?: User | null;
+};
+
+export type AgentMetrics = {
+  user_id: number;
+  user_name: string;
+  average_response_time?: number | null;
+  total_number_of_leads: number;
+  total_converted_leads: number;
+  total_reminders: number;
+  completed_reminders: number;
+  pending_reminders: number;
+  total_customer_attendance: number;
+  snapshot_date?: string | null;
 };
 
 export type Invoice = {

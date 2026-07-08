@@ -74,6 +74,10 @@ export async function fetchMe() {
   return request<User>("/me");
 }
 
+export async function fetchResource<T>(path: string) {
+  return request<T>(path);
+}
+
 export async function fetchCollection<T extends ApiRecord>(path: string) {
   return request<T[]>(path);
 }
