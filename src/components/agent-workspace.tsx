@@ -14,6 +14,8 @@ import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
+import { WorkflowInput } from "@/components/workflow-input";
+import { WorkflowSelect } from "@/components/workflow-select";
 
 export function AgentWorkspace() {
   const [metrics, setMetrics] = useState<AgentMetrics | null>(null);
@@ -23,16 +25,61 @@ export function AgentWorkspace() {
   const [messages, setMessages] = useState<Record<number, MessageRecord[]>>({});
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [composerBody, setComposerBody] = useState("");
+  const [followupSearch, setFollowupSearch] = useState("");
+  const [followupTiming, setFollowupTiming] = useState("all");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [conversationPlatform, setConversationPlatform] = useState("all");
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [completingFollowupId, setCompletingFollowupId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [threadRefreshing, setThreadRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const filteredFollowups = useMemo(() => {
+    const term = followupSearch.trim().toLowerCase();
+    const now = new Date();
+
+    return followups.filter((followup) => {
+      const dueDate = followup.due_at ? new Date(followup.due_at) : null;
+      const relative = formatRelativeDateLabel(followup.due_at).toLowerCase();
+      const leadName = followup.conversation?.lead?.name || followup.conversation?.lead?.profile_name || "";
+      const matchesSearch =
+        term.length === 0 ||
+        [leadName, followup.body, String(followup.id)]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+
+      const matchesTiming =
+        followupTiming === "all" ||
+        (followupTiming === "overdue" && dueDate && dueDate.getTime() < now.getTime()) ||
+        (followupTiming === "today" && relative === "today") ||
+        (followupTiming === "upcoming" && dueDate && dueDate.getTime() >= now.getTime() && relative !== "today");
+
+      return matchesSearch && matchesTiming;
+    });
+  }, [followupSearch, followupTiming, followups]);
+
+  const filteredConversations = useMemo(() => {
+    const term = conversationSearch.trim().toLowerCase();
+
+    return conversations.filter((conversation) => {
+      const leadName = conversation.lead?.name || conversation.lead?.profile_name || "";
+      const matchesSearch =
+        term.length === 0 ||
+        [leadName, conversation.platform, String(conversation.id), conversation.lead?.phone]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      const matchesPlatform = conversationPlatform === "all" || conversation.platform === conversationPlatform;
+
+      return matchesSearch && matchesPlatform;
+    });
+  }, [conversationPlatform, conversationSearch, conversations]);
+
   const selectedConversation = useMemo(
-    () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations[0] ?? null,
-    [conversations, selectedConversationId],
+    () => filteredConversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations.find((conversation) => conversation.id === selectedConversationId) ?? filteredConversations[0] ?? conversations[0] ?? null,
+    [conversations, filteredConversations, selectedConversationId],
   );
 
   useEffect(() => {
@@ -83,8 +130,12 @@ export function AgentWorkspace() {
     }
   }
 
-  async function loadMessages(conversationId: number) {
-    setLoadingMessages(true);
+  async function loadMessages(conversationId: number, options?: { force?: boolean }) {
+    if (options?.force) {
+      setThreadRefreshing(true);
+    } else {
+      setLoadingMessages(true);
+    }
     setError(null);
 
     try {
@@ -94,6 +145,7 @@ export function AgentWorkspace() {
       setError(err instanceof Error ? err.message : "Unable to load conversation messages.");
     } finally {
       setLoadingMessages(false);
+      setThreadRefreshing(false);
     }
   }
 
@@ -155,6 +207,7 @@ export function AgentWorkspace() {
 
   const selectedLead = leads.find((lead) => lead.id === selectedConversation?.lead_id);
   const selectedMessages = selectedConversation ? messages[selectedConversation.id] ?? [] : [];
+  const platformOptions = Array.from(new Set(conversations.map((conversation) => conversation.platform).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-6">
@@ -184,22 +237,48 @@ export function AgentWorkspace() {
 
       <div className="grid gap-6 xl:grid-cols-[0.78fr_1.22fr]">
         <Panel title="Follow-Up Queue" description="Actionable reminders generated from reminders, missed visits, cancellations, and completed reports.">
+          <div className="mb-4 grid gap-3 md:grid-cols-2">
+            <WorkflowInput label="Search" name="followup-search" value={followupSearch} onChange={setFollowupSearch} placeholder="Lead name, note, or follow-up id" />
+            <WorkflowSelect
+              label="Timing"
+              value={followupTiming}
+              onChange={setFollowupTiming}
+              options={[
+                { label: "All follow-ups", value: "all" },
+                { label: "Overdue", value: "overdue" },
+                { label: "Today", value: "today" },
+                { label: "Upcoming", value: "upcoming" },
+              ]}
+            />
+          </div>
+
           <div className="space-y-3">
-            {followups.map((followup) => (
+            {filteredFollowups.map((followup) => (
               <div key={followup.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-slate-950">{followup.conversation?.lead?.name || `Lead #${followup.conversation?.lead_id ?? "-"}`}</div>
                     <p className="mt-2 text-sm text-slate-600">{followup.body || "No follow-up body provided."}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void completeFollowup(followup.id)}
-                    disabled={completingFollowupId === followup.id}
-                    className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {completingFollowupId === followup.id ? "Completing..." : "Complete"}
-                  </button>
+                  <div className="flex flex-col items-end gap-2">
+                    {followup.conversation?.id ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConversationId(followup.conversation?.id ?? null)}
+                        className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Open Thread
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void completeFollowup(followup.id)}
+                      disabled={completingFollowupId === followup.id}
+                      className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {completingFollowupId === followup.id ? "Completing..." : "Complete"}
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   <span>Due {formatLocalDateTime(followup.due_at)}</span>
@@ -207,42 +286,54 @@ export function AgentWorkspace() {
                 </div>
               </div>
             ))}
-            {followups.length === 0 ? <div className="text-sm text-slate-500">No pending follow-ups.</div> : null}
+            {filteredFollowups.length === 0 ? <div className="text-sm text-slate-500">No pending follow-ups match the current filters.</div> : null}
           </div>
         </Panel>
 
         <div className="space-y-6">
           <Panel title="Conversation Desk" description="Recent assigned conversations with a live thread, local timestamps, and quick outbound replies.">
             <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-              <div className="space-y-3">
-                {conversations.map((conversation) => {
-                  const active = selectedConversation?.id === conversation.id;
+              <div>
+                <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+                  <WorkflowInput label="Search" name="conversation-search" value={conversationSearch} onChange={setConversationSearch} placeholder="Lead name, phone, platform, or conversation id" />
+                  <WorkflowSelect
+                    label="Platform"
+                    value={conversationPlatform}
+                    onChange={setConversationPlatform}
+                    options={[{ label: "All platforms", value: "all" }, ...platformOptions.map((platform) => ({ label: platform, value: platform }))]}
+                  />
+                </div>
 
-                  return (
-                    <button
-                      key={conversation.id}
-                      type="button"
-                      onClick={() => setSelectedConversationId(conversation.id)}
-                      className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold">
-                            {conversation.lead?.name || conversation.lead?.profile_name || `Lead #${conversation.lead_id ?? conversation.id}`}
+                <div className="space-y-3">
+                  {filteredConversations.map((conversation) => {
+                    const active = selectedConversation?.id === conversation.id;
+
+                    return (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() => setSelectedConversationId(conversation.id)}
+                        className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold">
+                              {conversation.lead?.name || conversation.lead?.profile_name || `Lead #${conversation.lead_id ?? conversation.id}`}
+                            </div>
+                            <div className={`mt-1 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>
+                              {conversation.platform || "Unknown channel"}
+                            </div>
                           </div>
-                          <div className={`mt-1 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>
-                            {conversation.platform || "Unknown channel"}
-                          </div>
+                          <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
                         </div>
-                        <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
-                      </div>
-                      <div className={`mt-3 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                        Last touch {formatLocalDateTime(conversation.last_message_time)}
-                      </div>
-                    </button>
-                  );
-                })}
-                {conversations.length === 0 ? <div className="text-sm text-slate-500">No assigned conversations yet.</div> : null}
+                        <div className={`mt-3 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                          Last touch {formatLocalDateTime(conversation.last_message_time)}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {filteredConversations.length === 0 ? <div className="text-sm text-slate-500">No assigned conversations match the current filters.</div> : null}
+                </div>
               </div>
 
               <div className="rounded-xl border border-[var(--line)] bg-white p-4">
@@ -258,7 +349,16 @@ export function AgentWorkspace() {
                             {selectedLead?.phone || "No phone"} | {selectedConversation.platform || "Unknown channel"}
                           </div>
                         </div>
-                        <StatusBadge value={selectedConversation.lead_status || selectedConversation.status || "active"} />
+                        <div className="flex items-center gap-2">
+                          <StatusBadge value={selectedConversation.lead_status || selectedConversation.status || "active"} />
+                          <button
+                            type="button"
+                            onClick={() => void loadMessages(selectedConversation.id, { force: true })}
+                            className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          >
+                            {threadRefreshing ? "Refreshing..." : "Refresh Thread"}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">

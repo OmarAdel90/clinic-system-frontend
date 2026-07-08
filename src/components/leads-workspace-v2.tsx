@@ -38,26 +38,50 @@ export function LeadsWorkspaceV2() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
-  const [assignments, setAssignments] = useState<Record<number, { clinicId: string; userId: string }>>({});
+  const [assignments, setAssignments] = useState<Record<number, { clinicId: string; userId: string; leadStatusId: string }>>({});
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [ownershipFilter, setOwnershipFilter] = useState("all");
   const [form, setForm] = useState<LeadForm>(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const filteredLeads = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return leads.filter((lead) => {
+      const leadStatus = lead.lead_status?.key || String(lead.lead_status_id ?? "new");
+      const matchesSearch =
+        term.length === 0 ||
+        [lead.name, lead.profile_name, lead.phone, lead.platform, String(lead.id)]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+
+      const matchesStatus = statusFilter === "all" || leadStatus === statusFilter;
+      const matchesOwnership =
+        ownershipFilter === "all" ||
+        (ownershipFilter === "assigned" && Boolean(lead.assignment_state?.user_id)) ||
+        (ownershipFilter === "unassigned" && !lead.assignment_state?.user_id) ||
+        (ownershipFilter === "clinic-linked" && Boolean(lead.clinic_id)) ||
+        (ownershipFilter === "clinic-open" && !lead.clinic_id);
+
+      return matchesSearch && matchesStatus && matchesOwnership;
+    });
+  }, [leads, ownershipFilter, search, statusFilter]);
+
   const selectedLead = useMemo(
-    () => leads.find((lead) => lead.id === selectedLeadId) ?? leads[0] ?? null,
-    [leads, selectedLeadId],
+    () => filteredLeads.find((lead) => lead.id === selectedLeadId) ?? leads.find((lead) => lead.id === selectedLeadId) ?? filteredLeads[0] ?? leads[0] ?? null,
+    [filteredLeads, leads, selectedLeadId],
   );
 
   const stats = useMemo(() => {
     const assignedCount = leads.filter((lead) => Boolean(lead.assignment_state?.user_id)).length;
     const clinicCount = leads.filter((lead) => Boolean(lead.clinic_id)).length;
-    const conversationCount = leads.reduce(
-      (sum, lead) => sum + (lead.conversations?.length ?? 0),
-      0,
-    );
+    const conversationCount = leads.reduce((sum, lead) => sum + (lead.conversations?.length ?? 0), 0);
 
     return {
       total: leads.length,
@@ -183,6 +207,26 @@ export function LeadsWorkspaceV2() {
     }
   }
 
+  async function updateLeadStatus(leadId: number) {
+    const leadStatusId = assignments[leadId]?.leadStatusId;
+    if (!leadStatusId) return;
+
+    setUpdatingLeadId(leadId);
+    setError(null);
+    setNotice(null);
+    try {
+      await mutateJson(`/leads/${leadId}`, "PATCH", {
+        lead_status_id: Number(leadStatusId),
+      });
+      setNotice(`Lead #${leadId} status updated successfully.`);
+      await load({ silent: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update lead status.");
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -211,11 +255,33 @@ export function LeadsWorkspaceV2() {
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, and lifecycle status.">
+          <div className="mb-4 grid gap-3 md:grid-cols-3">
+            <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
+            <WorkflowSelect
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[{ label: "All statuses", value: "all" }, ...statuses.map((status) => ({ label: status.label, value: status.key || String(status.id) }))]}
+            />
+            <WorkflowSelect
+              label="Ownership"
+              value={ownershipFilter}
+              onChange={setOwnershipFilter}
+              options={[
+                { label: "All leads", value: "all" },
+                { label: "Assigned", value: "assigned" },
+                { label: "Unassigned", value: "unassigned" },
+                { label: "Clinic linked", value: "clinic-linked" },
+                { label: "Clinic open", value: "clinic-open" },
+              ]}
+            />
+          </div>
+
           {loading ? (
             <div className="text-sm text-slate-500">Loading leads...</div>
           ) : (
             <div className="space-y-3">
-              {leads.map((lead) => {
+              {filteredLeads.map((lead) => {
                 const assignedUserName =
                   lead.assignment_state?.user?.name ||
                   users.find((user) => user.id === lead.assignment_state?.user_id)?.name;
@@ -248,7 +314,7 @@ export function LeadsWorkspaceV2() {
                   </button>
                 );
               })}
-              {leads.length === 0 ? <div className="text-sm text-slate-500">No leads yet.</div> : null}
+              {filteredLeads.length === 0 ? <div className="text-sm text-slate-500">No leads match the current filters.</div> : null}
             </div>
           )}
         </Panel>
@@ -281,7 +347,11 @@ export function LeadsWorkspaceV2() {
                     onChange={(value) =>
                       setAssignments((current) => ({
                         ...current,
-                        [selectedLead.id]: { clinicId: current[selectedLead.id]?.clinicId ?? "", userId: value },
+                        [selectedLead.id]: {
+                          clinicId: current[selectedLead.id]?.clinicId ?? "",
+                          userId: value,
+                          leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
+                        },
                       }))
                     }
                     options={users.map((user) => ({ label: user.name, value: user.id }))}
@@ -292,11 +362,41 @@ export function LeadsWorkspaceV2() {
                     onChange={(value) =>
                       setAssignments((current) => ({
                         ...current,
-                        [selectedLead.id]: { clinicId: value, userId: current[selectedLead.id]?.userId ?? "" },
+                        [selectedLead.id]: {
+                          clinicId: value,
+                          userId: current[selectedLead.id]?.userId ?? "",
+                          leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
+                        },
                       }))
                     }
                     options={clinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))}
                   />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+                  <WorkflowSelect
+                    label="Update Lead Status"
+                    value={assignments[selectedLead.id]?.leadStatusId ?? String(selectedLead.lead_status_id ?? "")}
+                    onChange={(value) =>
+                      setAssignments((current) => ({
+                        ...current,
+                        [selectedLead.id]: {
+                          clinicId: current[selectedLead.id]?.clinicId ?? "",
+                          userId: current[selectedLead.id]?.userId ?? "",
+                          leadStatusId: value,
+                        },
+                      }))
+                    }
+                    options={statuses.map((status) => ({ label: status.label, value: status.id }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void updateLeadStatus(selectedLead.id)}
+                    disabled={updatingLeadId === selectedLead.id || statuses.length === 0}
+                    className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {updatingLeadId === selectedLead.id ? "Updating..." : "Save Status"}
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
