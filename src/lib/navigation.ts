@@ -7,6 +7,7 @@ export const navItems: NavItem[] = [
   { label: "Agent", href: "/agent", description: "Follow-ups, conversations, and performance" },
   { label: "Treatment Plans", href: "/treatment-plans", description: "Planned care and visit bundles" },
   { label: "Visits", href: "/visits", description: "Scheduling and visit lifecycle" },
+  { label: "Patient Feedback", href: "/patient-feedback", description: "Post-visit patient sentiment and follow-through" },
   { label: "Invoices", href: "/invoices", description: "Billing and payments" },
   { label: "Clinics", href: "/clinics", description: "Branches and services" },
   { label: "Warehouses", href: "/warehouses", description: "Inventory and stock" },

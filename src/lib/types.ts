@@ -215,3 +215,16 @@ export type VisitReport = {
   supplies_used?: SupplyLine[] | null;
   invoice?: Invoice | null;
 };
+
+export type PatientFeedback = {
+  id: number;
+  lead_id: number;
+  user_id?: number | null;
+  clinic_id: number;
+  feedback_body: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  lead?: Lead | null;
+  user?: User | null;
+  clinic?: Clinic | null;
+};
