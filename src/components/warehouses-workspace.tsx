@@ -1,0 +1,265 @@
+﻿"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { fetchCollection } from "@/lib/api";
+import type { TreatmentPlanRef, Visit, Warehouse, WarehouseInventory } from "@/lib/types";
+import { PageHeader } from "@/components/page-header";
+import { Panel } from "@/components/panel";
+import { WorkflowInput } from "@/components/workflow-input";
+import { WorkflowSelect } from "@/components/workflow-select";
+import { StatCard } from "@/components/stat-card";
+import { formatLocalDateTime } from "@/lib/time";
+
+type InventoryPressure = {
+  sku: string;
+  name: string;
+  quantity: number;
+  reserved: number;
+  available: number;
+  pressure: "healthy" | "watch" | "critical";
+};
+
+function getPressure(available: number, quantity: number) {
+  if (quantity <= 0 || available / quantity > 0.5) {
+    return "healthy";
+  }
+
+  if (available <= 0 || available / quantity <= 0.15) {
+    return "critical";
+  }
+
+  return "watch";
+}
+
+export function WarehousesWorkspace() {
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [plans, setPlans] = useState<TreatmentPlanRef[]>([]);
+  const [search, setSearch] = useState("");
+  const [clinicFilter, setClinicFilter] = useState("all");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const filteredWarehouses = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return warehouses.filter((warehouse) => {
+      const clinicName = warehouse.clinic?.name || "";
+      const matchesSearch =
+        !term ||
+        [warehouse.name, clinicName, String(warehouse.id)]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      const matchesClinic = clinicFilter === "all" || String(warehouse.clinic_id ?? "") === clinicFilter;
+      return matchesSearch && matchesClinic;
+    });
+  }, [clinicFilter, search, warehouses]);
+
+  const selectedWarehouse = useMemo(
+    () => filteredWarehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? warehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? filteredWarehouses[0] ?? warehouses[0] ?? null,
+    [filteredWarehouses, selectedWarehouseId, warehouses],
+  );
+
+  const pressureRows = useMemo<InventoryPressure[]>(() => {
+    const inventories = selectedWarehouse?.inventories ?? [];
+    return inventories.map((row: WarehouseInventory) => {
+      const quantity = Number(row.quantity ?? 0);
+      const reserved = Number(row.reserved_quantity ?? 0);
+      const available = typeof row.available === "number" ? row.available : quantity - reserved;
+      return {
+        sku: row.sku,
+        name: row.name || row.sku,
+        quantity,
+        reserved,
+        available,
+        pressure: getPressure(available, quantity),
+      };
+    });
+  }, [selectedWarehouse]);
+
+  const relatedVisits = useMemo(() => visits.filter((visit) => visit.clinic_id === selectedWarehouse?.clinic_id), [selectedWarehouse, visits]);
+  const relatedPlans = useMemo(() => plans.filter((plan) => plan.clinic_id === selectedWarehouse?.clinic_id), [plans, selectedWarehouse]);
+
+  const stats = useMemo(() => ({
+    totalWarehouses: warehouses.length,
+    totalSkus: warehouses.reduce((sum, warehouse) => sum + (warehouse.inventories?.length ?? 0), 0),
+    reservedUnits: warehouses.reduce(
+      (sum, warehouse) => sum + (warehouse.inventories ?? []).reduce((inner, item) => inner + Number(item.reserved_quantity ?? 0), 0),
+      0,
+    ),
+    criticalSkus: warehouses.reduce(
+      (sum, warehouse) =>
+        sum +
+        (warehouse.inventories ?? []).filter((item) => {
+          const quantity = Number(item.quantity ?? 0);
+          const reserved = Number(item.reserved_quantity ?? 0);
+          const available = typeof item.available === "number" ? item.available : quantity - reserved;
+          return getPressure(available, quantity) === "critical";
+        }).length,
+      0,
+    ),
+  }), [warehouses]);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [warehouseRows, visitRows, planRows] = await Promise.all([
+        fetchCollection<Warehouse>("/warehouses"),
+        fetchCollection<Visit>("/visits"),
+        fetchCollection<TreatmentPlanRef>("/treatment-plans"),
+      ]);
+
+      setWarehouses(warehouseRows);
+      setVisits(visitRows);
+      setPlans(planRows);
+      setSelectedWarehouseId((current) => current ?? warehouseRows[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load warehouses.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void load();
+    });
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Warehouses"
+        description="Track available versus reserved stock by clinic and see how treatment plans and visit flow are consuming supply capacity."
+      />
+
+      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Warehouses" value={stats.totalWarehouses} hint="Warehouse records currently returned by the API." />
+        <StatCard label="Tracked SKUs" value={stats.totalSkus} hint="Inventory lines across all loaded warehouses." />
+        <StatCard label="Reserved Units" value={stats.reservedUnits} hint="Units currently reserved by planned or scheduled care." />
+        <StatCard label="Critical SKUs" value={stats.criticalSkus} hint="Inventory rows with very low or exhausted available stock." />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel title="Warehouse Queue" description="Warehouse records tied to clinics with immediate stock pressure context.">
+          <div className="mb-4 grid gap-3 md:grid-cols-2">
+            <WorkflowInput label="Search" name="warehouse-search" value={search} onChange={setSearch} placeholder="Warehouse, clinic, or id" />
+            <WorkflowSelect
+              label="Clinic"
+              value={clinicFilter}
+              onChange={setClinicFilter}
+              options={[{ label: "All clinics", value: "all" }, ...warehouses.map((warehouse) => ({ label: warehouse.clinic?.name || warehouse.name, value: String(warehouse.clinic_id ?? "") }))]}
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-sm text-slate-500">Loading warehouses...</div>
+          ) : (
+            <div className="space-y-4">
+              {filteredWarehouses.map((warehouse) => {
+                const inventoryCount = warehouse.inventories?.length ?? 0;
+                const reservedUnits = (warehouse.inventories ?? []).reduce((sum, item) => sum + Number(item.reserved_quantity ?? 0), 0);
+                return (
+                  <button key={warehouse.id} type="button" onClick={() => setSelectedWarehouseId(warehouse.id)} className={`w-full rounded-xl border p-4 text-left ${selectedWarehouse?.id === warehouse.id ? "border-slate-900 bg-white" : "border-[var(--line)] bg-[var(--surface)]"}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950">{warehouse.name}</div>
+                        <div className="mt-1 text-sm text-slate-600">{warehouse.clinic?.name || `Clinic #${warehouse.clinic_id ?? "-"}`}</div>
+                      </div>
+                      <div className="text-xs text-slate-500">#{warehouse.id}</div>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                      <div>Inventory Lines: {inventoryCount}</div>
+                      <div>Reserved Units: {reservedUnits}</div>
+                    </div>
+                  </button>
+                );
+              })}
+              {filteredWarehouses.length === 0 ? <div className="text-sm text-slate-500">No warehouses match the current filters.</div> : null}
+            </div>
+          )}
+        </Panel>
+
+        <div className="space-y-6">
+          <Panel title="Inventory Pressure" description="Available versus reserved stock for the selected warehouse.">
+            {selectedWarehouse ? (
+              <div className="space-y-3">
+                {pressureRows.map((row) => (
+                  <div key={row.sku} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950">{row.name}</div>
+                        <div className="mt-1 text-xs text-slate-500">{row.sku}</div>
+                      </div>
+                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${row.pressure === "critical" ? "bg-rose-100 text-rose-700" : row.pressure === "watch" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+                        {row.pressure}
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-3">
+                      <div>Total: {row.quantity}</div>
+                      <div>Reserved: {row.reserved}</div>
+                      <div>Available: {row.available}</div>
+                    </div>
+                  </div>
+                ))}
+                {pressureRows.length === 0 ? <div className="text-sm text-slate-500">No inventory rows on this warehouse yet.</div> : null}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">Select a warehouse to inspect stock pressure.</div>
+            )}
+          </Panel>
+
+          <Panel title="Clinic Demand Context" description="Visits and treatment plans currently putting pressure on the selected warehouse.">
+            {selectedWarehouse ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[var(--line)] bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-950">Related Visits</div>
+                  <div className="mt-3 space-y-3">
+                    {relatedVisits.slice(0, 6).map((visit) => (
+                      <div key={visit.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-medium text-slate-900">{visit.visit_number || `Visit #${visit.id}`}</div>
+                          <div className="text-xs text-slate-500">{visit.status || "-"}</div>
+                        </div>
+                        <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                          <div>{visit.lead?.name || visit.lead?.profile_name || `Lead #${visit.lead_id}`}</div>
+                          <div>{formatLocalDateTime(visit.scheduled_date || visit.visit_date)}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {relatedVisits.length === 0 ? <div className="text-sm text-slate-500">No visits currently tied to this clinic warehouse.</div> : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[var(--line)] bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-950">Related Treatment Plans</div>
+                  <div className="mt-3 space-y-3">
+                    {relatedPlans.slice(0, 6).map((plan) => (
+                      <div key={plan.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-medium text-slate-900">Plan #{plan.id}</div>
+                          <div className="text-xs text-slate-500">{plan.status || "-"}</div>
+                        </div>
+                        <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                          <div>{plan.lead?.name || plan.lead?.profile_name || `Lead #${plan.lead_id}`}</div>
+                          <div>{plan.total_visits ?? 0} planned visits</div>
+                        </div>
+                      </div>
+                    ))}
+                    {relatedPlans.length === 0 ? <div className="text-sm text-slate-500">No treatment plans currently tied to this clinic warehouse.</div> : null}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">Select a warehouse to inspect clinic demand context.</div>
+            )}
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -145,6 +145,7 @@ export type Clinic = {
   id: number;
   name: string;
   services?: Array<{ name?: string; cost?: number }> | null;
+  provides_medication?: boolean;
 };
 
 export type Campaign = {
@@ -169,6 +170,25 @@ export type SupplyLine = {
   name?: string;
   quantity: number;
   unit_price?: number;
+};
+
+export type WarehouseInventory = {
+  id?: number;
+  warehouse_id?: number;
+  sku: string;
+  name?: string | null;
+  arabic_name?: string | null;
+  quantity: number;
+  reserved_quantity: number;
+  available?: number;
+};
+
+export type Warehouse = {
+  id: number;
+  clinic_id?: number | null;
+  name: string;
+  clinic?: Clinic | null;
+  inventories?: WarehouseInventory[] | null;
 };
 
 export type TreatmentPlanRef = {
