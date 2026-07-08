@@ -53,12 +53,24 @@ export type Visit = {
   lead_id: number;
   user_id?: number | null;
   clinic_id?: number | null;
+  treatment_plan_id?: number | null;
+  conversation_id?: number | null;
+  visit_number?: string | null;
   scheduled_date?: string | null;
   visit_date?: string | null;
+  confirmed_at?: string | null;
+  actual_date?: string | null;
   status?: string | null;
+  supplies_reserved?: SupplyLine[] | null;
   services_cost?: number | null;
   supplies_cost?: number | null;
   total_cost?: number | null;
+  lead?: Lead | null;
+  user?: User | null;
+  clinic?: Clinic | null;
+  conversation?: Conversation | null;
+  treatment_plan?: TreatmentPlanRef | null;
+  report?: VisitReport | null;
 };
 
 export type Conversation = {
@@ -145,4 +157,26 @@ export type LeadStatus = {
   sort_order?: number;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type SupplyLine = {
+  sku: string;
+  name?: string;
+  quantity: number;
+  unit_price?: number;
+};
+
+export type TreatmentPlanRef = {
+  id: number;
+  status?: string | null;
+  total_visits?: number | null;
+};
+
+export type VisitReport = {
+  id: number;
+  diagnosis?: string | null;
+  treatment_notes?: string | null;
+  body?: string | null;
+  supplies_used?: SupplyLine[] | null;
+  invoice?: Invoice | null;
 };
