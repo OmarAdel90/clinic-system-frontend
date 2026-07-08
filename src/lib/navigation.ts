@@ -5,6 +5,7 @@ export const navItems: NavItem[] = [
   { label: "Leads", href: "/leads", description: "CRM pipeline and assignments" },
   { label: "Lead Statuses", href: "/lead-statuses", description: "Dynamic pipeline status management" },
   { label: "Agent", href: "/agent", description: "Follow-ups, conversations, and performance" },
+  { label: "Treatment Plans", href: "/treatment-plans", description: "Planned care and visit bundles" },
   { label: "Visits", href: "/visits", description: "Scheduling and visit lifecycle" },
   { label: "Invoices", href: "/invoices", description: "Billing and payments" },
   { label: "Clinics", href: "/clinics", description: "Branches and services" },

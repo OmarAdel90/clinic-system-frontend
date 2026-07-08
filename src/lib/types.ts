@@ -131,15 +131,20 @@ export type Invoice = {
   invoice_number?: string | null;
   lead_id?: number | null;
   clinic_id?: number | null;
+  treatment_plan_id?: number | null;
   total_cost?: number | null;
   amount_paid?: number | null;
   status?: string | null;
   issued_at?: string | null;
+  lead?: Lead | null;
+  clinic?: Clinic | null;
+  report?: VisitReport | null;
 };
 
 export type Clinic = {
   id: number;
   name: string;
+  services?: Array<{ name?: string; cost?: number }> | null;
 };
 
 export type Campaign = {
@@ -168,8 +173,18 @@ export type SupplyLine = {
 
 export type TreatmentPlanRef = {
   id: number;
-  status?: string | null;
+  lead_id?: number | null;
+  user_id?: number | null;
+  clinic_id?: number | null;
+  diagnosis?: string | null;
+  notes?: string | null;
+  type?: string | null;
   total_visits?: number | null;
+  status?: string | null;
+  lead?: Lead | null;
+  user?: User | null;
+  clinic?: Clinic | null;
+  visits?: Visit[] | null;
 };
 
 export type VisitReport = {
