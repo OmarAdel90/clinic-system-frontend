@@ -17,6 +17,10 @@ import { StatusBadge } from "@/components/status-badge";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 
+function getLeadStatusDisplay(lead: Lead) {
+  return lead.lead_status?.label || lead.lead_status?.key || String(lead.lead_status_id ?? "new");
+}
+
 export function AgentWorkspace() {
   const [metrics, setMetrics] = useState<AgentMetrics | null>(null);
   const [followups, setFollowups] = useState<FollowUp[]>([]);
@@ -423,7 +427,7 @@ export function AgentWorkspace() {
                   <div className="text-sm font-semibold text-slate-950">{lead.name || lead.profile_name || `Lead #${lead.id}`}</div>
                   <div className="mt-2 text-sm text-slate-600">{lead.phone || "No phone"} | {lead.platform || "Unknown channel"}</div>
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <StatusBadge value={lead.lead_status?.key || String(lead.lead_status_id ?? "new")} />
+                    <StatusBadge value={getLeadStatusDisplay(lead)} />
                     <span className="text-xs text-slate-500">Created {formatLocalDateTime(lead.created_at)}</span>
                   </div>
                 </div>

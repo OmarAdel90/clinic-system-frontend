@@ -31,6 +31,10 @@ const initialForm: LeadForm = {
   lead_status_id: "",
 };
 
+function getLeadStatusDisplay(lead: Lead) {
+  return lead.lead_status?.label || lead.lead_status?.key || String(lead.lead_status_id ?? "new");
+}
+
 export function LeadsWorkspaceV2() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -302,7 +306,7 @@ export function LeadsWorkspaceV2() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <StatusBadge value={lead.lead_status?.key || String(lead.lead_status_id ?? "new")} />
+                        <StatusBadge value={getLeadStatusDisplay(lead)} />
                         <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
                       </div>
                     </div>
@@ -329,7 +333,7 @@ export function LeadsWorkspaceV2() {
                       <div className="text-sm font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
                       <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} | {selectedLead.platform || "Unknown channel"}</div>
                     </div>
-                    <StatusBadge value={selectedLead.lead_status?.key || String(selectedLead.lead_status_id ?? "new")} />
+                    <StatusBadge value={getLeadStatusDisplay(selectedLead)} />
                   </div>
 
                   <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
