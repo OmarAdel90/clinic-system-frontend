@@ -133,6 +133,15 @@ export function ClinicsWorkspace() {
     [users],
   );
 
+  const availableWarehouses = useMemo(
+    () =>
+      warehouses.filter(
+        (warehouse) =>
+          !warehouse.clinic?.id || warehouse.clinic.id === selectedClinic?.id,
+      ),
+    [selectedClinic?.id, warehouses],
+  );
+
   const stats = useMemo(
     () => ({
       total: clinics.length,
@@ -173,6 +182,18 @@ export function ClinicsWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedClinic));
   }, [selectedClinic]);
+
+  useEffect(() => {
+    if (!createForm.provides_medication && createForm.warehouse_id) {
+      setCreateForm((current) => ({ ...current, warehouse_id: "" }));
+    }
+  }, [createForm.provides_medication, createForm.warehouse_id]);
+
+  useEffect(() => {
+    if (!editForm.provides_medication && editForm.warehouse_id) {
+      setEditForm((current) => ({ ...current, warehouse_id: "" }));
+    }
+  }, [editForm.provides_medication, editForm.warehouse_id]);
 
   async function createClinic(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -345,7 +366,7 @@ export function ClinicsWorkspace() {
                   <div className="mt-1 text-sm text-slate-600">{selectedClinic.arabic_name || selectedClinic.address || "No address set"}</div>
                   <div className="mt-1 text-xs text-slate-500">{selectedClinic.address || "No address set"}</div>
                   <div className="mt-2 text-xs text-slate-500">
-                    Warehouse: {selectedClinic.warehouse?.name || "Not linked"}
+                    Warehouse: {selectedClinic.provides_medication ? selectedClinic.warehouse?.name || "Not linked" : "Not applicable for services-only clinics"}
                   </div>
                 </div>
 
@@ -355,8 +376,13 @@ export function ClinicsWorkspace() {
                     <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
                     <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
                     <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
-                    <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={warehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} />
+                    <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} />
                   </div>
+                  {!editForm.provides_medication ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      Services-only clinics cannot keep a warehouse. Any linked warehouse will be removed when you save.
+                    </div>
+                  ) : null}
                   <WorkflowTextarea label="Address" value={editForm.address} onChange={(value) => setEditForm((current) => ({ ...current, address: value }))} />
                   <WorkflowTextarea label="Departments" value={editForm.departments} onChange={(value) => setEditForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
                   <WorkflowTextarea label="Services" value={editForm.services} onChange={(value) => setEditForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />

@@ -76,8 +76,8 @@ export function RolesWorkspace() {
         return true;
       }
 
-      const permissionNames = (role.permissions || []).map((permission) => permission.name).join(" ");
-      return [role.name, role.guard_name, permissionNames, String(role.id)]
+      const permissionLabels = (role.permissions || []).map((permission) => formatPermissionLabel(permission.name)).join(" ");
+      return [role.name, role.guard_name, permissionLabels, String(role.id)]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
@@ -85,7 +85,13 @@ export function RolesWorkspace() {
 
   const filteredPermissions = useMemo(() => {
     const term = permissionSearch.trim().toLowerCase();
-    return permissions.filter((permission) => !term || permission.name.toLowerCase().includes(term));
+    return permissions.filter((permission) => {
+      if (!term) {
+        return true;
+      }
+
+      return formatPermissionLabel(permission.name).toLowerCase().includes(term);
+    });
   }, [permissionSearch, permissions]);
 
   const selectedRole = useMemo(
@@ -206,7 +212,7 @@ export function RolesWorkspace() {
           name="permission-search"
           value={permissionSearch}
           onChange={setPermissionSearch}
-          placeholder="Search permission names"
+          placeholder="Search friendly permission labels"
         />
         <div className="grid max-h-72 gap-2 overflow-y-auto md:grid-cols-2">
           {filteredPermissions.map((permission) => {
@@ -223,7 +229,6 @@ export function RolesWorkspace() {
                 }`}
               >
                 <div className="font-medium">{formatPermissionLabel(permission.name)}</div>
-                <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{permission.name}</div>
               </button>
             );
           })}
@@ -252,7 +257,7 @@ export function RolesWorkspace() {
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Panel title="Role Catalog" description="Select a role to inspect its permission footprint.">
           <div className="mb-4">
-            <WorkflowInput label="Search" name="role-search" value={search} onChange={setSearch} placeholder="Role, permission, or id" />
+            <WorkflowInput label="Search" name="role-search" value={search} onChange={setSearch} placeholder="Role, friendly permission, or id" />
           </div>
 
           {loading ? (
