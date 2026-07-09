@@ -272,6 +272,20 @@ export type WarehouseSupplierTransaction = {
   updated_at?: string | null;
 };
 
+export type SupplierPaymentHistory = {
+  id: number;
+  transaction_id: string;
+  supplier_id: number;
+  batch_id?: string | null;
+  total_amount: number;
+  total_paid: number;
+  payment_status?: string | null;
+  transaction?: WarehouseSupplierTransaction | null;
+  supplier?: Supplier | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type TreatmentPlanRef = {
   id: number;
   lead_id?: number | null;
