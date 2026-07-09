@@ -4,7 +4,15 @@ export type Role = {
   id: number;
   name: string;
   guard_name?: string;
-  permissions?: ApiRecord[];
+  permissions?: Permission[];
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type Permission = {
+  id: number;
+  name: string;
+  guard_name?: string;
 };
 
 export type User = {
@@ -12,8 +20,17 @@ export type User = {
   name: string;
   email: string;
   roles?: Role[];
+  arabic_name?: string | null;
   title?: string | null;
   phone_number?: string | null;
+  location?: string | null;
+  salary?: number | null;
+  commission?: number | null;
+  specialization?: string | null;
+  whatsapp_agent_number?: string | null;
+  hired_at?: string | null;
+  work_start?: string | null;
+  work_end?: string | null;
   is_active?: boolean;
 };
 
@@ -144,8 +161,14 @@ export type Invoice = {
 export type Clinic = {
   id: number;
   name: string;
-  services?: Array<{ name?: string; cost?: number }> | null;
+  arabic_name?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
+  departments?: string[] | null;
+  doctors?: number[] | null;
+  services?: string[] | null;
   provides_medication?: boolean;
+  warehouse?: Warehouse | null;
 };
 
 export type Campaign = {

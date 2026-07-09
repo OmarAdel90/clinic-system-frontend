@@ -1,0 +1,381 @@
+"use client";
+
+import { FormEvent, type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
+import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import type { Clinic, User, Warehouse } from "@/lib/types";
+import { PageHeader } from "@/components/page-header";
+import { Panel } from "@/components/panel";
+import { WorkflowInput } from "@/components/workflow-input";
+import { WorkflowSelect } from "@/components/workflow-select";
+import { WorkflowTextarea } from "@/components/workflow-textarea";
+import { StatCard } from "@/components/stat-card";
+
+type ClinicForm = {
+  name: string;
+  arabic_name: string;
+  phone_number: string;
+  address: string;
+  provides_medication: boolean;
+  departments: string;
+  services: string;
+  doctors: number[];
+  warehouse_id: string;
+};
+
+const initialForm: ClinicForm = {
+  name: "",
+  arabic_name: "",
+  phone_number: "",
+  address: "",
+  provides_medication: true,
+  departments: "",
+  services: "",
+  doctors: [],
+  warehouse_id: "",
+};
+
+function toList(value: string) {
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function toText(values?: string[] | null) {
+  return (values || []).join("\n");
+}
+
+function toForm(clinic?: Clinic | null): ClinicForm {
+  if (!clinic) {
+    return initialForm;
+  }
+
+  return {
+    name: clinic.name || "",
+    arabic_name: clinic.arabic_name || "",
+    phone_number: clinic.phone_number || "",
+    address: clinic.address || "",
+    provides_medication: clinic.provides_medication ?? true,
+    departments: toText(clinic.departments),
+    services: toText(clinic.services),
+    doctors: clinic.doctors || [],
+    warehouse_id: clinic.warehouse?.id ? String(clinic.warehouse.id) : "",
+  };
+}
+
+function toggleId(list: number[], id: number) {
+  return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+}
+
+function buildClinicPayload(form: ClinicForm, includeWarehouse: boolean) {
+  const payload: Record<string, string | boolean | number[] | string[] | number | null> = {
+    name: form.name,
+    arabic_name: form.arabic_name,
+    phone_number: form.phone_number,
+    address: form.address,
+    provides_medication: form.provides_medication,
+    departments: toList(form.departments),
+    services: toList(form.services),
+    doctors: form.doctors,
+  };
+
+  if (includeWarehouse) {
+    payload.warehouse_id = form.warehouse_id ? Number(form.warehouse_id) : null;
+  }
+
+  return payload;
+}
+
+export function ClinicsWorkspace() {
+  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [createForm, setCreateForm] = useState<ClinicForm>(initialForm);
+  const [editForm, setEditForm] = useState<ClinicForm>(initialForm);
+  const [loading, setLoading] = useState(true);
+  const [savingCreate, setSavingCreate] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const filteredClinics = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return clinics.filter((clinic) => {
+      if (!term) {
+        return true;
+      }
+
+      return [
+        clinic.name,
+        clinic.arabic_name,
+        clinic.phone_number,
+        clinic.address,
+        ...(clinic.departments || []),
+        ...(clinic.services || []),
+        String(clinic.id),
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term));
+    });
+  }, [clinics, search]);
+
+  const selectedClinic = useMemo(
+    () => clinics.find((clinic) => clinic.id === selectedId) ?? filteredClinics[0] ?? clinics[0] ?? null,
+    [clinics, filteredClinics, selectedId],
+  );
+
+  const doctorOptions = useMemo(
+    () => users.map((user) => ({ id: user.id, label: user.name || user.email })),
+    [users],
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: clinics.length,
+      withMedication: clinics.filter((clinic) => clinic.provides_medication).length,
+      linkedWarehouses: clinics.filter((clinic) => clinic.warehouse?.id).length,
+      staffed: clinics.filter((clinic) => (clinic.doctors || []).length > 0).length,
+    }),
+    [clinics],
+  );
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [clinicPayload, userPayload, warehousePayload] = await Promise.all([
+        fetchCollection<Clinic>("/clinics"),
+        fetchCollection<User>("/users"),
+        fetchCollection<Warehouse>("/warehouses"),
+      ]);
+      setClinics(clinicPayload);
+      setUsers(userPayload);
+      setWarehouses(warehousePayload);
+      setSelectedId((current) => current ?? clinicPayload[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load clinics.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void load();
+    });
+  }, []);
+
+  useEffect(() => {
+    setEditForm(toForm(selectedClinic));
+  }, [selectedClinic]);
+
+  async function createClinic(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingCreate(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await mutateJson<Clinic>("/clinics", "POST", buildClinicPayload(createForm, false));
+      setCreateForm(initialForm);
+      setNotice("Clinic created successfully.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create clinic.");
+    } finally {
+      setSavingCreate(false);
+    }
+  }
+
+  async function updateClinic(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedClinic) {
+      return;
+    }
+
+    setSavingEdit(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await mutateJson<Clinic>(`/clinics/${selectedClinic.id}`, "PATCH", buildClinicPayload(editForm, true));
+      setNotice(`Clinic "${editForm.name}" updated successfully.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update clinic.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteClinic(clinicId: number) {
+    setDeletingId(clinicId);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await removeResource(`/clinics/${clinicId}`);
+      setNotice(`Clinic #${clinicId} deleted successfully.`);
+      if (selectedId === clinicId) {
+        setSelectedId(null);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete clinic.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function renderDoctorPicker(form: ClinicForm, setForm: Dispatch<SetStateAction<ClinicForm>>) {
+    return (
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-slate-700">Assigned Doctors</div>
+        <div className="flex max-h-52 flex-wrap gap-2 overflow-y-auto">
+          {doctorOptions.map((doctor) => {
+            const active = form.doctors.includes(doctor.id);
+            return (
+              <button
+                key={doctor.id}
+                type="button"
+                onClick={() => setForm((current) => ({ ...current, doctors: toggleId(current.doctors, doctor.id) }))}
+                className={`rounded-lg border px-3 py-2 text-sm transition ${
+                  active
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+                }`}
+              >
+                {doctor.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Clinics"
+        description="Maintain clinic master data, services, staffing, and warehouse linkage so the rest of the workflow has a clean operational backbone."
+      />
+
+      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{notice}</div> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Total Clinics" value={stats.total} hint="Clinic records returned by the API." />
+        <StatCard label="Medication Ready" value={stats.withMedication} hint="Branches marked as providing medication." />
+        <StatCard label="Linked Warehouses" value={stats.linkedWarehouses} hint="Clinics already attached to a warehouse." />
+        <StatCard label="Staffed Clinics" value={stats.staffed} hint="Clinics with at least one assigned doctor user id." />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel title="Clinic List" description="Search branches and select one for setup changes.">
+          <div className="mb-4">
+            <WorkflowInput label="Search" name="clinic-search" value={search} onChange={setSearch} placeholder="Name, phone, address, service, or id" />
+          </div>
+
+          {loading ? (
+            <div className="text-sm text-slate-500">Loading clinics...</div>
+          ) : (
+            <div className="space-y-3">
+              {filteredClinics.map((clinic) => {
+                const active = selectedClinic?.id === clinic.id;
+                return (
+                  <button
+                    key={clinic.id}
+                    type="button"
+                    onClick={() => setSelectedId(clinic.id)}
+                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold">{clinic.name}</div>
+                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{clinic.phone_number || clinic.address || "No contact details yet"}</div>
+                      </div>
+                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${clinic.provides_medication ? active ? "bg-emerald-400/20 text-emerald-100" : "bg-emerald-50 text-emerald-700" : active ? "bg-amber-400/20 text-amber-100" : "bg-amber-50 text-amber-700"}`}>
+                        {clinic.provides_medication ? "Medication" : "Services Only"}
+                      </div>
+                    </div>
+                    <div className={`mt-3 flex flex-wrap gap-2 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                      {(clinic.services || []).slice(0, 4).map((service) => (
+                        <span key={service} className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                          {service}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+
+        <div className="space-y-6">
+          <Panel title="Create Clinic" description="Set up branch details, departments, and available services.">
+            <form className="space-y-4" onSubmit={createClinic}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <WorkflowInput label="Name" name="create-clinic-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
+                <WorkflowInput label="Arabic Name" name="create-clinic-arabic-name" value={createForm.arabic_name} onChange={(value) => setCreateForm((current) => ({ ...current, arabic_name: value }))} required />
+                <WorkflowInput label="Phone" name="create-clinic-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} required />
+                <WorkflowSelect label="Medication Support" value={createForm.provides_medication ? "true" : "false"} onChange={(value) => setCreateForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
+              </div>
+              <WorkflowTextarea label="Address" value={createForm.address} onChange={(value) => setCreateForm((current) => ({ ...current, address: value }))} placeholder="Street, district, and any branch notes" />
+              <WorkflowTextarea label="Departments" value={createForm.departments} onChange={(value) => setCreateForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
+              <WorkflowTextarea label="Services" value={createForm.services} onChange={(value) => setCreateForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
+              {renderDoctorPicker(createForm, setCreateForm)}
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                {savingCreate ? "Saving..." : "Create Clinic"}
+              </button>
+            </form>
+          </Panel>
+
+          <Panel title="Selected Clinic" description="Adjust branch details and warehouse linkage for the selected clinic.">
+            {selectedClinic ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                  <div className="text-sm font-semibold text-slate-950">{selectedClinic.name}</div>
+                  <div className="mt-1 text-sm text-slate-600">{selectedClinic.address || "No address set"}</div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    Warehouse: {selectedClinic.warehouse?.name || "Not linked"}
+                  </div>
+                </div>
+
+                <form className="space-y-4" onSubmit={updateClinic}>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                    <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
+                    <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
+                    <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
+                    <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={warehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} />
+                  </div>
+                  <WorkflowTextarea label="Address" value={editForm.address} onChange={(value) => setEditForm((current) => ({ ...current, address: value }))} />
+                  <WorkflowTextarea label="Departments" value={editForm.departments} onChange={(value) => setEditForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
+                  <WorkflowTextarea label="Services" value={editForm.services} onChange={(value) => setEditForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
+                  {renderDoctorPicker(editForm, setEditForm)}
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      {savingEdit ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button type="button" onClick={() => void deleteClinic(selectedClinic.id)} disabled={deletingId === selectedClinic.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                      {deletingId === selectedClinic.id ? "Deleting..." : "Delete Clinic"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">Select a clinic to edit branch setup details.</div>
+            )}
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}

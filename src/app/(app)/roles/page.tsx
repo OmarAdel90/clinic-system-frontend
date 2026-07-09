@@ -1,12 +1,5 @@
-import { ResourcePage } from "@/components/resource-page";
+import { RolesWorkspace } from "@/components/roles-workspace";
 
 export default function RolesPage() {
-  return (
-    <ResourcePage
-      title="Roles"
-      description="Permission bundles that drive who can view, create, update, and delete each domain model."
-      endpoint="/roles"
-      preferredKeys={["id", "name", "guard_name", "created_at"]}
-    />
-  );
+  return <RolesWorkspace />;
 }
