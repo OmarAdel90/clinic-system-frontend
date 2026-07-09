@@ -102,16 +102,20 @@ export type Conversation = {
   first_message_time?: string | null;
   lead_status?: string | null;
   converted_at?: string | null;
+  unread_amount?: number | null;
   lead?: Lead | null;
 };
 
 export type MessageRecord = {
   id: number;
+  conversation_id?: number | null;
+  lead_id?: number | null;
   body?: string | null;
   type?: string | null;
   direction?: string | null;
   media_url?: string | null;
   media_caption?: string | null;
+  status?: string | null;
   sent_at?: string | null;
   created_at?: string | null;
   user?: User | null;
