@@ -45,6 +45,8 @@ const initialForm: UserForm = {
   roles: [],
 };
 
+const PROTECTED_ADMIN_EMAIL = "super@clinic.com";
+
 function toForm(user?: User | null): UserForm {
   if (!user) {
     return initialForm;
@@ -131,6 +133,8 @@ export function UsersWorkspace() {
     () => users.find((user) => user.id === selectedId) ?? filteredUsers[0] ?? users[0] ?? null,
     [filteredUsers, selectedId, users],
   );
+
+  const selectedUserIsProtectedAdmin = selectedUser?.email === PROTECTED_ADMIN_EMAIL;
 
   const stats = useMemo(
     () => ({
@@ -310,6 +314,11 @@ export function UsersWorkspace() {
                           {role.name}
                         </span>
                       ))}
+                      {user.email === PROTECTED_ADMIN_EMAIL ? (
+                        <span className={`rounded-full px-2.5 py-1 ${active ? "bg-amber-400/20 text-amber-100" : "bg-amber-50 text-amber-700"}`}>
+                          Protected admin
+                        </span>
+                      ) : null}
                       {user.title ? <span>{user.title}</span> : null}
                     </div>
                   </button>
@@ -378,8 +387,8 @@ export function UsersWorkspace() {
                     <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {savingEdit ? "Saving..." : "Save Changes"}
                     </button>
-                    <button type="button" onClick={() => void deleteUser(selectedUser.id)} disabled={deletingId === selectedUser.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedUser.id ? "Deleting..." : "Delete User"}
+                    <button type="button" onClick={() => void deleteUser(selectedUser.id)} disabled={selectedUserIsProtectedAdmin || deletingId === selectedUser.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                      {selectedUserIsProtectedAdmin ? "Protected Admin" : deletingId === selectedUser.id ? "Deleting..." : "Delete User"}
                     </button>
                   </div>
                 </form>

@@ -19,6 +19,25 @@ const initialForm: RoleForm = {
   permissions: [],
 };
 
+function formatPermissionLabel(value: string) {
+  return value
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((segment) => {
+      switch (segment.toLowerCase()) {
+        case "crm":
+          return "CRM";
+        case "ssn":
+          return "SSN";
+        case "api":
+          return "API";
+        default:
+          return segment.charAt(0).toUpperCase() + segment.slice(1);
+      }
+    })
+    .join(" ");
+}
+
 function toForm(role?: Role | null): RoleForm {
   if (!role) {
     return initialForm;
@@ -203,7 +222,8 @@ export function RolesWorkspace() {
                     : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
                 }`}
               >
-                {permission.name}
+                <div className="font-medium">{formatPermissionLabel(permission.name)}</div>
+                <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{permission.name}</div>
               </button>
             );
           })}
@@ -253,7 +273,7 @@ export function RolesWorkspace() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(role.permissions || []).slice(0, 8).map((permission) => (
                         <span key={permission.id} className={`rounded-full px-2.5 py-1 text-xs ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
-                          {permission.name}
+                          {formatPermissionLabel(permission.name)}
                         </span>
                       ))}
                     </div>

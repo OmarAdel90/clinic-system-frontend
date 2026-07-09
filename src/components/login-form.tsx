@@ -8,7 +8,7 @@ import { saveSession } from "@/lib/auth";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("super@clinic.com");
+  const [loginId, setLoginId] = useState("super@clinic.com");
   const [password, setPassword] = useState("password123");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const payload = await login(email, password);
+      const payload = await login(loginId, password);
       saveSession(payload);
       const nextPath = searchParams.get("next") || "/dashboard";
       router.push(nextPath);
@@ -33,16 +33,16 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <label className="text-sm font-medium text-slate-700" htmlFor="email">
-          Work Email
+        <label className="text-sm font-medium text-slate-700" htmlFor="login">
+          Email or Phone
         </label>
         <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          id="login"
+          type="text"
+          value={loginId}
+          onChange={(event) => setLoginId(event.target.value)}
           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          placeholder="super@clinic.com"
+          placeholder="super@clinic.com or 01000000000"
           required
         />
       </div>

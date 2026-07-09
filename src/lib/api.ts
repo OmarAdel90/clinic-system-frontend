@@ -53,14 +53,14 @@ async function request<T>(path: string, options: RequestOptions = {}) {
   return payload as T;
 }
 
-export async function login(email: string, password: string) {
+export async function login(login: string, password: string) {
   return request<LoginResponse>("/login", {
     method: "POST",
     auth: false,
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ login, password }),
   });
 }
 

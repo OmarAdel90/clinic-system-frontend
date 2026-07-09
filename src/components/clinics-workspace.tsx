@@ -298,7 +298,7 @@ export function ClinicsWorkspace() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold">{clinic.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{clinic.phone_number || clinic.address || "No contact details yet"}</div>
+                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{clinic.arabic_name || clinic.phone_number || clinic.address || "No contact details yet"}</div>
                       </div>
                       <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${clinic.provides_medication ? active ? "bg-emerald-400/20 text-emerald-100" : "bg-emerald-50 text-emerald-700" : active ? "bg-amber-400/20 text-amber-100" : "bg-amber-50 text-amber-700"}`}>
                         {clinic.provides_medication ? "Medication" : "Services Only"}
@@ -342,7 +342,8 @@ export function ClinicsWorkspace() {
               <div className="space-y-4">
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
                   <div className="text-sm font-semibold text-slate-950">{selectedClinic.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedClinic.address || "No address set"}</div>
+                  <div className="mt-1 text-sm text-slate-600">{selectedClinic.arabic_name || selectedClinic.address || "No address set"}</div>
+                  <div className="mt-1 text-xs text-slate-500">{selectedClinic.address || "No address set"}</div>
                   <div className="mt-2 text-xs text-slate-500">
                     Warehouse: {selectedClinic.warehouse?.name || "Not linked"}
                   </div>
