@@ -29,15 +29,14 @@ function getConversationTitle(conversation: Conversation) {
   return conversation.lead?.name || conversation.lead?.profile_name || `Lead #${conversation.lead_id ?? conversation.id}`;
 }
 
-function getMessagePreview(rows: MessageRecord[]) {
-  const latest = rows[rows.length - 1];
-  if (!latest) return "No messages loaded yet.";
-  return latest.body || latest.media_caption || latest.type || "Message";
-}
-
 function getPlatformLabel(platform?: string | null) {
   if (!platform) return "Unknown channel";
   return platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+
+function getMessagePreview(rows: MessageRecord[]) {
+  const latest = rows[rows.length - 1];
+  return latest?.body || latest?.media_caption || latest?.type || "No messages loaded yet.";
 }
 
 export function AgentWorkspace() {
@@ -103,19 +102,9 @@ export function AgentWorkspace() {
   }, [conversationPlatform, conversationSearch, conversations, messages]);
 
   const selectedConversation = useMemo(
-    () =>
-      filteredConversations.find((conversation) => conversation.id === selectedConversationId) ??
-      conversations.find((conversation) => conversation.id === selectedConversationId) ??
-      filteredConversations[0] ??
-      conversations[0] ??
-      null,
+    () => filteredConversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations.find((conversation) => conversation.id === selectedConversationId) ?? filteredConversations[0] ?? conversations[0] ?? null,
     [conversations, filteredConversations, selectedConversationId],
   );
-
-  const selectedLead = leads.find((lead) => lead.id === selectedConversation?.lead_id);
-  const selectedMessages = selectedConversation ? messages[selectedConversation.id] ?? [] : [];
-  const platformOptions = Array.from(new Set(conversations.map((conversation) => conversation.platform).filter(Boolean))) as string[];
-  const unreadConversations = conversations.filter((conversation) => (conversation.unread_amount ?? 0) > 0).length;
 
   useEffect(() => {
     void loadWorkspace();
@@ -126,9 +115,11 @@ export function AgentWorkspace() {
       return;
     }
 
-    if (!messages[selectedConversation.id]) {
-      void loadMessages(selectedConversation.id);
+    if (messages[selectedConversation.id]) {
+      return;
     }
+
+    void loadMessages(selectedConversation.id);
   }, [selectedConversation, messages]);
 
   useEffect(() => {
@@ -138,14 +129,14 @@ export function AgentWorkspace() {
     }
 
     viewport.scrollTop = viewport.scrollHeight;
-  }, [selectedConversation?.id, selectedMessages.length]);
+  }, [selectedConversation?.id, selectedConversationId, messages]);
 
   useEffect(() => {
-    const workspaceInterval = window.setInterval(() => {
+    const interval = window.setInterval(() => {
       void loadWorkspace({ silent: true });
     }, 30000);
 
-    return () => window.clearInterval(workspaceInterval);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -153,11 +144,11 @@ export function AgentWorkspace() {
       return;
     }
 
-    const threadInterval = window.setInterval(() => {
+    const interval = window.setInterval(() => {
       void loadMessages(selectedConversation.id, { force: true, silent: true });
     }, 12000);
 
-    return () => window.clearInterval(threadInterval);
+    return () => window.clearInterval(interval);
   }, [selectedConversation?.id]);
 
   async function loadWorkspace(options?: { silent?: boolean }) {
@@ -271,6 +262,10 @@ export function AgentWorkspace() {
     }
   }
 
+  const selectedLead = leads.find((lead) => lead.id === selectedConversation?.lead_id);
+  const selectedMessages = selectedConversation ? messages[selectedConversation.id] ?? [] : [];
+  const platformOptions = Array.from(new Set(conversations.map((conversation) => conversation.platform).filter(Boolean))) as string[];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -353,10 +348,10 @@ export function AgentWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Conversation Desk" description="Assigned conversations with a proper inbox layout, local timestamps, and quick replies.">
-            <div className="grid gap-4 xl:grid-cols-[0.78fr_1.22fr]">
-              <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+          <Panel title="Conversation Desk" description="Recent assigned conversations with a live thread, local timestamps, and quick outbound replies.">
+            <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+              <div>
+                <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
                   <WorkflowInput label="Search" name="conversation-search" value={conversationSearch} onChange={setConversationSearch} placeholder="Lead name, phone, platform, message preview, or conversation id" />
                   <WorkflowSelect
                     label="Platform"
@@ -366,26 +361,10 @@ export function AgentWorkspace() {
                   />
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Visible Threads</div>
-                    <div className="mt-2 text-2xl font-semibold text-slate-950">{filteredConversations.length}</div>
-                  </div>
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Unread Threads</div>
-                    <div className="mt-2 text-2xl font-semibold text-slate-950">{unreadConversations}</div>
-                  </div>
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Active Channel</div>
-                    <div className="mt-2 text-base font-semibold text-slate-950">{selectedConversation ? getPlatformLabel(selectedConversation.platform) : "No selection"}</div>
-                  </div>
-                </div>
-
-                <div className="max-h-[780px] space-y-3 overflow-y-auto pr-1">
+                <div className="space-y-3">
                   {filteredConversations.map((conversation) => {
                     const active = selectedConversation?.id === conversation.id;
-                    const cachedMessages = messages[conversation.id] ?? [];
-                    const preview = getMessagePreview(cachedMessages);
+                    const preview = getMessagePreview(messages[conversation.id] ?? []);
                     const unread = conversation.unread_amount ?? 0;
 
                     return (
@@ -393,7 +372,7 @@ export function AgentWorkspace() {
                         key={conversation.id}
                         type="button"
                         onClick={() => setSelectedConversationId(conversation.id)}
-                        className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
+                        className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
@@ -407,7 +386,7 @@ export function AgentWorkspace() {
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
-                            {unread > 0 ? <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${active ? "bg-white/15 text-white" : "bg-slate-900 text-white"}`}>{unread} unread</span> : null}
+                            {unread > 0 ? <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${active ? "bg-white/15 text-white" : "bg-slate-900 text-white"}`}>{unread}</span> : null}
                           </div>
                         </div>
                         <div className={`mt-3 line-clamp-2 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>{preview}</div>
@@ -422,141 +401,104 @@ export function AgentWorkspace() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-                <div className="rounded-xl border border-[var(--line)] bg-white">
-                  {selectedConversation ? (
-                    <div className="flex h-full min-h-[780px] flex-col">
-                      <div className="border-b border-[var(--line)] px-5 py-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div>
-                            <div className="text-base font-semibold text-slate-950">{getConversationTitle(selectedConversation)}</div>
-                            <div className="mt-1 text-sm text-slate-600">{selectedLead?.phone || "No phone"} | {getPlatformLabel(selectedConversation.platform)}</div>
+              <div className="rounded-xl border border-[var(--line)] bg-white p-4">
+                {selectedConversation ? (
+                  <div className="space-y-4">
+                    <div className="border-b border-[var(--line)] pb-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <div className="text-base font-semibold text-slate-950">
+                            {getConversationTitle(selectedConversation)}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <StatusBadge value={selectedConversation.lead_status || selectedConversation.status || "active"} />
-                            <button
-                              type="button"
-                              onClick={() => void loadMessages(selectedConversation.id, { force: true })}
-                              className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                            >
-                              {threadRefreshing ? "Refreshing..." : "Refresh Thread"}
-                            </button>
+                          <div className="mt-1 text-sm text-slate-600">
+                            {selectedLead?.phone || "No phone"} | {getPlatformLabel(selectedConversation.platform)}
                           </div>
                         </div>
-
-                        <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                          <div>First touch: {formatLocalDateTime(selectedConversation.first_message_time)}</div>
-                          <div>Last touch: {formatLocalDateTime(selectedConversation.last_message_time)}</div>
-                          <div>Converted: {formatLocalDateTime(selectedConversation.converted_at)}</div>
-                          <div>{formatRelativeDateLabel(selectedConversation.last_message_time)}</div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge value={selectedConversation.lead_status || selectedConversation.status || "active"} />
+                          <button
+                            type="button"
+                            onClick={() => void loadMessages(selectedConversation.id, { force: true })}
+                            className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          >
+                            {threadRefreshing ? "Refreshing..." : "Refresh Thread"}
+                          </button>
                         </div>
                       </div>
 
-                      <div ref={threadViewportRef} className="flex-1 space-y-4 overflow-y-auto bg-slate-50/80 px-5 py-5">
-                        {loadingMessages ? <div className="text-sm text-slate-500">Loading messages...</div> : null}
-                        {!loadingMessages && selectedMessages.length === 0 ? <div className="text-sm text-slate-500">No messages returned for this conversation yet.</div> : null}
-                        {selectedMessages.map((message) => {
-                          const outbound = message.direction === "outbound";
-                          const stamp = message.sent_at || message.created_at;
+                      <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                        <div>First touch: {formatLocalDateTime(selectedConversation.first_message_time)}</div>
+                        <div>Last touch: {formatLocalDateTime(selectedConversation.last_message_time)}</div>
+                        <div>Converted: {formatLocalDateTime(selectedConversation.converted_at)}</div>
+                        <div>{formatRelativeDateLabel(selectedConversation.last_message_time)}</div>
+                      </div>
+                    </div>
 
-                          return (
-                            <div key={message.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
-                              <div className={`max-w-[88%] rounded-2xl border px-4 py-3 shadow-sm ${outbound ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-900"}`}>
-                                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.08em] opacity-80">
-                                  <span>{outbound ? message.user?.name || "You" : "Lead"}</span>
-                                  <span>{message.type || "message"}</span>
-                                  {message.status ? <span>{message.status}</span> : null}
-                                </div>
-                                <div className="mt-2 whitespace-pre-wrap text-sm leading-6">{message.body || message.media_caption || message.type || "Message"}</div>
-                                {message.media_url ? (
-                                  <a href={message.media_url} target="_blank" rel="noreferrer" className={`mt-3 inline-flex text-xs font-medium underline ${outbound ? "text-slate-200" : "text-slate-600"}`}>
-                                    Open media
-                                  </a>
-                                ) : null}
-                                <div className={`mt-3 text-[11px] ${outbound ? "text-slate-300" : "text-slate-500"}`}>{formatLocalDateTime(stamp)}</div>
+                    <div ref={threadViewportRef} className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                      {loadingMessages ? <div className="text-sm text-slate-500">Loading messages...</div> : null}
+                      {!loadingMessages && selectedMessages.length === 0 ? <div className="text-sm text-slate-500">No messages returned for this conversation yet.</div> : null}
+                      {selectedMessages.map((message) => {
+                        const outbound = message.direction === "outbound";
+                        const stamp = message.sent_at || message.created_at;
+
+                        return (
+                          <div key={message.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] rounded-2xl border px-4 py-3 ${outbound ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] text-slate-900"}`}>
+                              <div className="text-sm leading-6">{message.body || message.media_caption || message.type || "Message"}</div>
+                              {message.media_url ? (
+                                <a href={message.media_url} target="_blank" rel="noreferrer" className={`mt-2 inline-flex text-xs underline ${outbound ? "text-slate-300" : "text-slate-500"}`}>
+                                  Open media
+                                </a>
+                              ) : null}
+                              <div className={`mt-2 text-[11px] ${outbound ? "text-slate-300" : "text-slate-500"}`}>
+                                {outbound ? message.user?.name || "You" : "Lead"} | {message.status || message.type || "message"} | {formatLocalDateTime(stamp)}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-
-                      <form className="border-t border-[var(--line)] bg-white px-5 py-4" onSubmit={handleSendMessage}>
-                        <div className="space-y-3">
-                          <textarea
-                            value={composerBody}
-                            onChange={(event) => setComposerBody(event.target.value)}
-                            rows={4}
-                            placeholder="Type a reply to the selected conversation"
-                            className="w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-                          />
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="text-xs text-slate-500">Replies are sent through the backend messaging service for this conversation. The thread refreshes automatically while this desk is open.</div>
-                            <button
-                              type="submit"
-                              disabled={sending || !composerBody.trim()}
-                              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                            >
-                              {sending ? "Sending..." : "Send Message"}
-                            </button>
                           </div>
-                        </div>
-                      </form>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className="flex min-h-[780px] items-center justify-center px-6 text-sm text-slate-500">Select a conversation to work the thread.</div>
-                  )}
-                </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Selected Lead</div>
-                    <div className="mt-2 text-base font-semibold text-slate-950">{selectedLead ? getConversationTitle({ ...selectedConversation, lead: selectedLead } as Conversation) : "No lead selected"}</div>
-                    <div className="mt-2 space-y-2 text-sm text-slate-600">
-                      <div>Phone: {selectedLead?.phone || "No phone"}</div>
-                      <div>Platform: {selectedLead?.platform || selectedConversation?.platform || "Unknown"}</div>
-                      <div>Created: {formatLocalDateTime(selectedLead?.created_at)}</div>
-                      <div>Clinic: {selectedLead?.clinic?.name || "Not assigned"}</div>
-                    </div>
-                    {selectedLead ? (
-                      <div className="mt-3 flex items-center gap-2">
-                        <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
-                        <span className="text-xs text-slate-500">Lead #{selectedLead.id}</span>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Thread Health</div>
-                    <div className="mt-3 space-y-3 text-sm text-slate-600">
+                    <form className="space-y-3 border-t border-[var(--line)] pt-4" onSubmit={handleSendMessage}>
+                      <textarea
+                        value={composerBody}
+                        onChange={(event) => setComposerBody(event.target.value)}
+                        rows={4}
+                        placeholder="Type a reply to the selected conversation"
+                        className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                      />
                       <div className="flex items-center justify-between gap-3">
-                        <span>Loaded messages</span>
-                        <span className="font-semibold text-slate-950">{selectedMessages.length}</span>
+                        <div className="text-xs text-slate-500">Replies are sent through the backend messaging service for this conversation. The thread refreshes automatically while this workspace is open.</div>
+                        <button
+                          type="submit"
+                          disabled={sending || !composerBody.trim()}
+                          className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                        >
+                          {sending ? "Sending..." : "Send Message"}
+                        </button>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span>Unread count</span>
-                        <span className="font-semibold text-slate-950">{selectedConversation?.unread_amount ?? 0}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span>Last update</span>
-                        <span className="font-semibold text-slate-950">{formatRelativeDateLabel(selectedConversation?.last_message_time)}</span>
-                      </div>
-                    </div>
+                    </form>
                   </div>
-
-                  <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                    <div className="text-xs uppercase tracking-[0.08em] text-slate-500">Assigned Lead Snapshot</div>
-                    <div className="mt-3 space-y-3">
-                      {leads.slice(0, 6).map((lead) => (
-                        <div key={lead.id} className="rounded-lg border border-white/80 bg-white px-3 py-3">
-                          <div className="text-sm font-semibold text-slate-950">{lead.name || lead.profile_name || `Lead #${lead.id}`}</div>
-                          <div className="mt-1 text-xs text-slate-500">{lead.phone || "No phone"} | {lead.platform || "Unknown channel"}</div>
-                        </div>
-                      ))}
-                      {leads.length === 0 ? <div className="text-sm text-slate-500">No assigned leads yet.</div> : null}
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <div className="text-sm text-slate-500">Select a conversation to work the thread.</div>
+                )}
               </div>
+            </div>
+          </Panel>
+
+          <Panel title="Assigned Lead Snapshot" description="A quick read on the leads currently attached to your conversation queue.">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {leads.map((lead) => (
+                <div key={lead.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                  <div className="text-sm font-semibold text-slate-950">{lead.name || lead.profile_name || `Lead #${lead.id}`}</div>
+                  <div className="mt-2 text-sm text-slate-600">{lead.phone || "No phone"} | {lead.platform || "Unknown channel"}</div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
+                    <span className="text-xs text-slate-500">Created {formatLocalDateTime(lead.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+              {leads.length === 0 ? <div className="text-sm text-slate-500">No assigned leads yet.</div> : null}
             </div>
           </Panel>
         </div>
