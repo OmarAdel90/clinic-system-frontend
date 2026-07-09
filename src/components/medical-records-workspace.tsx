@@ -351,7 +351,7 @@ export function MedicalRecordsWorkspace() {
             <form className="space-y-4" onSubmit={createRecord}>
               <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: describeLead(lead), value: lead.id }))} required emptyLabel="Select lead" />
               <WorkflowSelect label="Type" value={createForm.type} onChange={(value) => setCreateForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
-              <WorkflowTextarea label="Notes" name="create-medical-record-notes" value={createForm.notes} onChange={(value) => setCreateForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
+              <WorkflowTextarea label="Notes" value={createForm.notes} onChange={(value) => setCreateForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-700">File</span>
                 <input type="file" onChange={onCreateFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" required />
@@ -382,7 +382,7 @@ export function MedicalRecordsWorkspace() {
 
                 <form className="space-y-4" onSubmit={updateRecord}>
                   <WorkflowSelect label="Type" value={editForm.type} onChange={(value) => setEditForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
-                  <WorkflowTextarea label="Notes" name="edit-medical-record-notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
+                  <WorkflowTextarea label="Notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
                   <label className="block space-y-2">
                     <span className="text-sm font-medium text-slate-700">Replace File</span>
                     <input type="file" onChange={onEditFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" />
@@ -406,3 +406,4 @@ export function MedicalRecordsWorkspace() {
     </div>
   );
 }
+
