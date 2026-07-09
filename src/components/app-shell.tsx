@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-const DEPLOY_MARKER = "Build 2026-07-08A";
+const DEPLOY_MARKER = "Build 2026-07-09R";
 
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
@@ -54,7 +54,7 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
 
           <nav className="mt-4 space-y-1">
-            {navItems.filter((item) => canAccess(user, item.roles)).map((item) => {
+            {navItems.filter((item) => canAccess(user, item.permissions)).map((item) => {
               const active = pathname === item.href;
 
               return (
@@ -96,3 +96,5 @@ export function AppShell({ user, children }: AppShellProps) {
     </div>
   );
 }
+
+

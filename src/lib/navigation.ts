@@ -1,8 +1,14 @@
-﻿import type { NavItem } from "@/lib/types";
+import type { NavItem } from "@/lib/types";
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", description: "Operational overview" },
   { label: "Leads", href: "/leads", description: "CRM pipeline and assignments" },
+  {
+    label: "Lead Queue",
+    href: "/lead-queue",
+    description: "Round-robin queue management",
+    permissions: ["view_any_call_center_queue_entry", "create_call_center_queue_entry", "delete_call_center_queue_entry"],
+  },
   { label: "Lead Statuses", href: "/lead-statuses", description: "Dynamic pipeline status management" },
   { label: "Agent", href: "/agent", description: "Follow-ups, conversations, and performance" },
   { label: "Treatment Plans", href: "/treatment-plans", description: "Planned care and visit bundles" },
@@ -18,12 +24,12 @@ export const navItems: NavItem[] = [
     label: "Users",
     href: "/users",
     description: "Team members and access",
-    roles: ["admin"],
+    permissions: ["view_any_user", "create_user", "update_user", "delete_user"],
   },
   {
     label: "Roles",
     href: "/roles",
     description: "Permissions and RBAC",
-    roles: ["admin"],
+    permissions: ["view_any_role", "create_role", "update_role", "delete_role"],
   },
 ];

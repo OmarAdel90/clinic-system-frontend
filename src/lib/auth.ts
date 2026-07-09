@@ -56,10 +56,14 @@ export function hasRole(user: User | null, roleName: string) {
   return Boolean(user?.roles?.some((role) => role.name === roleName));
 }
 
-export function canAccess(user: User | null, allowedRoles?: string[]) {
-  if (!allowedRoles || allowedRoles.length === 0) {
+export function hasPermission(user: User | null, permissionName: string) {
+  return Boolean(user?.permissions?.some((permission) => permission.name === permissionName));
+}
+
+export function canAccess(user: User | null, requiredPermissions?: string[]) {
+  if (!requiredPermissions || requiredPermissions.length === 0) {
     return true;
   }
 
-  return allowedRoles.some((role) => hasRole(user, role));
+  return requiredPermissions.some((permission) => hasPermission(user, permission));
 }

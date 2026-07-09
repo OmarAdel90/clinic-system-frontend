@@ -1,4 +1,4 @@
-﻿export type ApiRecord = Record<string, unknown>;
+export type ApiRecord = Record<string, unknown>;
 
 export type Role = {
   id: number;
@@ -20,6 +20,7 @@ export type User = {
   name: string;
   email: string;
   roles?: Role[];
+  permissions?: Permission[];
   arabic_name?: string | null;
   title?: string | null;
   phone_number?: string | null;
@@ -44,7 +45,7 @@ export type NavItem = {
   label: string;
   href: string;
   description: string;
-  roles?: string[];
+  permissions?: string[];
 };
 
 export type Lead = {
@@ -127,6 +128,16 @@ export type FollowUp = {
 export type AssignmentState = {
   lead_id: number;
   user_id: number;
+  user?: User | null;
+};
+
+export type CallCenterQueueEntry = {
+  id: number;
+  user_id: number;
+  position: number;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
   user?: User | null;
 };
 
