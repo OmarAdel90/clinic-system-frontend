@@ -214,7 +214,7 @@ export function SuppliersWorkspace() {
           <Panel title="Create Supplier" description="Capture the vendor identity and contact number used during warehouse procurement.">
             <form className="space-y-4" onSubmit={createSupplier}>
               <WorkflowInput label="Name" name="create-supplier-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-              <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} required />
+              <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Supplier"}
               </button>
@@ -232,7 +232,7 @@ export function SuppliersWorkspace() {
 
                 <form className="space-y-4" onSubmit={updateSupplier}>
                   <WorkflowInput label="Name" name="edit-supplier-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                  <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
+                  <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
                   <div className="flex flex-wrap gap-3">
                     <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {savingEdit ? "Saving..." : "Save Changes"}

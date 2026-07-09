@@ -33,13 +33,18 @@ function toForm(item?: Pharmaceutical | null): PharmaceuticalForm {
     return initialForm;
   }
 
-  return {
-    SKU: item.SKU || "",
-    name: item.name || "",
-    arabic_name: item.arabic_name || "",
-    sale_price: item.sale_price != null ? String(item.sale_price) : "",
-    description: item.description || "",
-    attribute: item.attribute ? JSON.stringify(item.attribute, null, 2) : "",
+    return {
+      SKU: item.SKU || "",
+      name: item.name || "",
+      arabic_name: item.arabic_name || "",
+      sale_price: item.sale_price != null ? String(item.sale_price) : "",
+      description: item.description || "",
+      attribute:
+        item.attribute && typeof item.attribute === "object" && !Array.isArray(item.attribute)
+          ? Object.entries(item.attribute as Record<string, unknown>)
+              .map(([key, value]) => `${key}: ${String(value)}`)
+              .join("\n")
+          : "",
   };
 }
 
@@ -49,7 +54,28 @@ function parseAttribute(value: string) {
     return null;
   }
 
-  return JSON.parse(trimmed);
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const entries = lines.map((line) => {
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex <= 0) {
+      throw new Error('Attributes must be written as "key: value" on separate lines.');
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    const rawValue = line.slice(separatorIndex + 1).trim();
+
+    if (!key || !rawValue) {
+      throw new Error('Attributes must be written as "key: value" on separate lines.');
+    }
+
+    return [key, rawValue];
+  });
+
+  return Object.fromEntries(entries);
 }
 
 export function PharmaceuticalsWorkspace() {
@@ -252,7 +278,7 @@ export function PharmaceuticalsWorkspace() {
                 <WorkflowInput label="Sale Price" name="create-pharma-price" type="number" value={createForm.sale_price} onChange={(value) => setCreateForm((current) => ({ ...current, sale_price: value }))} required />
               </div>
               <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} />
-              <WorkflowTextarea label="Attributes JSON" value={createForm.attribute} onChange={(value) => setCreateForm((current) => ({ ...current, attribute: value }))} placeholder='{"dose":"500mg","form":"tablet"}' />
+              <WorkflowTextarea label="Attributes" value={createForm.attribute} onChange={(value) => setCreateForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Pharmaceutical"}
               </button>
@@ -276,7 +302,7 @@ export function PharmaceuticalsWorkspace() {
                     <WorkflowInput label="Sale Price" name="edit-pharma-price" type="number" value={editForm.sale_price} onChange={(value) => setEditForm((current) => ({ ...current, sale_price: value }))} required />
                   </div>
                   <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
-                  <WorkflowTextarea label="Attributes JSON" value={editForm.attribute} onChange={(value) => setEditForm((current) => ({ ...current, attribute: value }))} />
+                  <WorkflowTextarea label="Attributes" value={editForm.attribute} onChange={(value) => setEditForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
                   <div className="flex flex-wrap gap-3">
                     <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {savingEdit ? "Saving..." : "Save Changes"}

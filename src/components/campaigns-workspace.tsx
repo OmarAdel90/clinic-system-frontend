@@ -62,7 +62,7 @@ function buildPayload(form: CampaignForm) {
     start_date: form.start_date || null,
     end_date: form.end_date || null,
     budget: form.budget ? Number(form.budget) : null,
-    currency: form.currency || null,
+    currency: form.currency ? form.currency.toUpperCase() : null,
     status: form.status || null,
   };
 }
@@ -260,8 +260,8 @@ export function CampaignsWorkspace() {
                 <WorkflowInput label="Start Date" name="create-campaign-start" type="date" value={createForm.start_date} onChange={(value) => setCreateForm((current) => ({ ...current, start_date: value }))} />
                 <WorkflowInput label="End Date" name="create-campaign-end" type="date" value={createForm.end_date} onChange={(value) => setCreateForm((current) => ({ ...current, end_date: value }))} />
                 <WorkflowInput label="Budget" name="create-campaign-budget" type="number" value={createForm.budget} onChange={(value) => setCreateForm((current) => ({ ...current, budget: value }))} />
-                <WorkflowInput label="Currency" name="create-campaign-currency" value={createForm.currency} onChange={(value) => setCreateForm((current) => ({ ...current, currency: value }))} placeholder="EGP" />
-                <WorkflowInput label="Status" name="create-campaign-status" value={createForm.status} onChange={(value) => setCreateForm((current) => ({ ...current, status: value }))} placeholder="active, paused, draft" />
+                <WorkflowInput label="Currency" name="create-campaign-currency" value={createForm.currency} onChange={(value) => setCreateForm((current) => ({ ...current, currency: value.toUpperCase() }))} placeholder="EGP" />
+                <WorkflowSelect label="Status" value={createForm.status} onChange={(value) => setCreateForm((current) => ({ ...current, status: value }))} options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} emptyLabel="No status" />
               </div>
               <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} placeholder="Acquisition goal, targeting notes, or messaging context" />
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
@@ -285,8 +285,8 @@ export function CampaignsWorkspace() {
                     <WorkflowInput label="Start Date" name="edit-campaign-start" type="date" value={editForm.start_date} onChange={(value) => setEditForm((current) => ({ ...current, start_date: value }))} />
                     <WorkflowInput label="End Date" name="edit-campaign-end" type="date" value={editForm.end_date} onChange={(value) => setEditForm((current) => ({ ...current, end_date: value }))} />
                     <WorkflowInput label="Budget" name="edit-campaign-budget" type="number" value={editForm.budget} onChange={(value) => setEditForm((current) => ({ ...current, budget: value }))} />
-                    <WorkflowInput label="Currency" name="edit-campaign-currency" value={editForm.currency} onChange={(value) => setEditForm((current) => ({ ...current, currency: value }))} />
-                    <WorkflowInput label="Status" name="edit-campaign-status" value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} />
+                    <WorkflowInput label="Currency" name="edit-campaign-currency" value={editForm.currency} onChange={(value) => setEditForm((current) => ({ ...current, currency: value.toUpperCase() }))} />
+                    <WorkflowSelect label="Status" value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} emptyLabel="No status" />
                   </div>
                   <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
                   <div className="flex flex-wrap gap-3">

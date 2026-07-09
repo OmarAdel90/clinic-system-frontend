@@ -70,6 +70,38 @@ export function PatientFeedbackWorkspace() {
     [feedbackRows, filteredFeedback, selectedId],
   );
 
+  const selectedCreateLead = useMemo(
+    () => leads.find((lead) => String(lead.id) === createForm.lead_id) ?? null,
+    [createForm.lead_id, leads],
+  );
+
+  const selectedEditLead = useMemo(
+    () => leads.find((lead) => String(lead.id) === editForm.lead_id) ?? null,
+    [editForm.lead_id, leads],
+  );
+
+  const createClinicOptions = useMemo(() => {
+    const clinicId = selectedCreateLead?.clinic_id;
+    if (!clinicId) {
+      return [];
+    }
+
+    return clinics
+      .filter((clinic) => clinic.id === clinicId)
+      .map((clinic) => ({ label: clinic.name, value: clinic.id }));
+  }, [clinics, selectedCreateLead?.clinic_id]);
+
+  const editClinicOptions = useMemo(() => {
+    const clinicId = selectedEditLead?.clinic_id;
+    if (!clinicId) {
+      return [];
+    }
+
+    return clinics
+      .filter((clinic) => clinic.id === clinicId)
+      .map((clinic) => ({ label: clinic.name, value: clinic.id }));
+  }, [clinics, selectedEditLead?.clinic_id]);
+
   const stats = useMemo(() => ({
     total: feedbackRows.length,
     distinctLeads: new Set(feedbackRows.map((row) => row.lead_id)).size,
@@ -111,6 +143,20 @@ export function PatientFeedbackWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedFeedback));
   }, [selectedFeedback]);
+
+  useEffect(() => {
+    if (selectedCreateLead?.clinic_id) {
+      setCreateForm((current) => ({ ...current, clinic_id: String(selectedCreateLead.clinic_id) }));
+    } else if (createForm.clinic_id) {
+      setCreateForm((current) => ({ ...current, clinic_id: "" }));
+    }
+  }, [createForm.clinic_id, selectedCreateLead?.clinic_id]);
+
+  useEffect(() => {
+    if (selectedEditLead?.clinic_id) {
+      setEditForm((current) => ({ ...current, clinic_id: String(selectedEditLead.clinic_id) }));
+    }
+  }, [selectedEditLead?.clinic_id]);
 
   async function createFeedback(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -226,7 +272,12 @@ export function PatientFeedbackWorkspace() {
           <Panel title="Create Feedback" description="Capture a new patient feedback note tied to a lead and clinic.">
             <form className="space-y-4" onSubmit={createFeedback}>
               <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: lead.id }))} required />
-              <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={clinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required />
+              <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={createClinicOptions} required allowEmpty={false} />
+              {createForm.lead_id && !selectedCreateLead?.clinic_id ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  The selected lead must be assigned to a clinic before patient feedback can be created.
+                </div>
+              ) : null}
               <WorkflowTextarea label="Feedback Body" value={createForm.feedback_body} onChange={(value) => setCreateForm((current) => ({ ...current, feedback_body: value }))} placeholder="Patient comments, satisfaction notes, concerns, or follow-up sentiment" />
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Feedback"}
@@ -244,7 +295,7 @@ export function PatientFeedbackWorkspace() {
                 </div>
 
                 <form className="space-y-4" onSubmit={updateFeedback}>
-                  <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={clinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required />
+                  <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={editClinicOptions} required allowEmpty={false} />
                   <WorkflowTextarea label="Feedback Body" value={editForm.feedback_body} onChange={(value) => setEditForm((current) => ({ ...current, feedback_body: value }))} />
                   <div className="flex flex-wrap gap-3">
                     <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
