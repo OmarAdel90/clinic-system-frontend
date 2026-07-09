@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, mutateJson } from "@/lib/api";
 import type { Campaign, Clinic, Conversation, Lead, LeadStatus, User } from "@/lib/types";
@@ -90,12 +91,14 @@ export function LeadsWorkspaceV2() {
     const assignedCount = leads.filter((lead) => Boolean(lead.assignment_state?.user_id)).length;
     const clinicCount = leads.filter((lead) => Boolean(lead.clinic_id)).length;
     const conversationCount = leads.reduce((sum, lead) => sum + (lead.conversations?.length ?? 0), 0);
+    const medicalRecordLeadCount = leads.filter((lead) => (lead.medical_records_count ?? 0) > 0).length;
 
     return {
       total: leads.length,
       assignedCount,
       clinicCount,
       conversationCount,
+      medicalRecordLeadCount,
     };
   }, [leads]);
 
@@ -254,15 +257,16 @@ export function LeadsWorkspaceV2() {
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{notice}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <StatCard label="Total Leads" value={stats.total} hint="Pipeline records currently visible to your role." />
         <StatCard label="Assigned Leads" value={stats.assignedCount} hint="Leads already routed to a specific user." />
         <StatCard label="Clinic Handoffs" value={stats.clinicCount} hint="Leads already linked to a clinic for treatment ownership." />
         <StatCard label="Linked Conversations" value={stats.conversationCount} hint="CRM conversations currently attached to the loaded leads." />
+        <StatCard label="Leads With Records" value={stats.medicalRecordLeadCount} hint="Leads that already have at least one medical record on file." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, and lifecycle status.">
+        <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, lifecycle status, and record visibility.">
           <div className="mb-4 grid gap-3 md:grid-cols-3">
             <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
             <WorkflowSelect
@@ -294,6 +298,7 @@ export function LeadsWorkspaceV2() {
                   lead.assignment_state?.user?.name ||
                   users.find((user) => user.id === lead.assignment_state?.user_id)?.name;
                 const active = selectedLead?.id === lead.id;
+                const medicalRecordCount = lead.medical_records_count ?? 0;
 
                 return (
                   <button
@@ -310,13 +315,19 @@ export function LeadsWorkspaceV2() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        {medicalRecordCount > 0 ? (
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-emerald-50 text-emerald-700"}`}>
+                            {medicalRecordCount} record{medicalRecordCount === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
                         <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
                         <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
                       </div>
                     </div>
-                    <div className={`mt-3 grid gap-2 text-xs md:grid-cols-3 ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div className={`mt-3 grid gap-2 text-xs md:grid-cols-4 ${active ? "text-slate-300" : "text-slate-500"}`}>
                       <div>Agent: {assignedUserName || "Unassigned"}</div>
                       <div>Clinic: {lead.clinic?.name || "Not linked"}</div>
+                      <div>Records: {medicalRecordCount}</div>
                       <div>Created: {formatLocalDateTime(lead.created_at)}</div>
                     </div>
                   </button>
@@ -345,6 +356,16 @@ export function LeadsWorkspaceV2() {
                     <div>Clinic handoff: {formatLocalDateTime(selectedLead.clinic_assigned_at)}</div>
                     <div>Assigned clinic: {selectedLead.clinic?.name || "Not linked yet"}</div>
                     <div>Linked conversations: {selectedLead.conversations?.length ?? 0}</div>
+                    <div>Medical records: {selectedLead.medical_records_count ?? 0}</div>
+                  </div>
+
+                  <div className="mt-4">
+                    <Link
+                      href={`/medical-records?lead=${selectedLead.id}`}
+                      className="inline-flex rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Open Medical Records
+                    </Link>
                   </div>
                 </div>
 

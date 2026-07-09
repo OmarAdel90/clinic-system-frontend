@@ -60,6 +60,7 @@ export type Lead = {
   profile_name?: string | null;
   whatsapp_id?: string | null;
   created_at?: string | null;
+  medical_records_count?: number;
   clinic?: Clinic | null;
   assignment_state?: AssignmentState | null;
   lead_status?: LeadStatus | null;
@@ -249,6 +250,21 @@ export type Pharmaceutical = {
   attribute?: Record<string, unknown> | unknown[] | null;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type MedicalRecord = {
+  id: number;
+  lead_id: number;
+  type: string;
+  file_path?: string | null;
+  original_name?: string | null;
+  mime_type?: string | null;
+  notes?: string | null;
+  uploaded_by?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  lead?: Lead | null;
+  uploaded_by_user?: User | null;
 };
 
 export type WarehouseSupplierTransactionItem = {

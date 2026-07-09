@@ -13,6 +13,12 @@ export const navItems: NavItem[] = [
   { label: "Agent", href: "/agent", description: "Follow-ups, conversations, and performance" },
   { label: "Treatment Plans", href: "/treatment-plans", description: "Planned care and visit bundles" },
   { label: "Visits", href: "/visits", description: "Scheduling and visit lifecycle" },
+  {
+    label: "Medical Records",
+    href: "/medical-records",
+    description: "Patient files and clinical attachments",
+    permissions: ["view_any_medical_record", "view_medical_record", "create_medical_record", "update_medical_record", "delete_medical_record"],
+  },
   { label: "Patient Feedback", href: "/patient-feedback", description: "Post-visit patient sentiment and follow-through" },
   { label: "Invoices", href: "/invoices", description: "Billing and payments" },
   { label: "Clinics", href: "/clinics", description: "Branches and services" },

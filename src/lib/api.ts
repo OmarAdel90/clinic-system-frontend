@@ -99,6 +99,13 @@ export async function uploadFile<T>(path: string, formData: FormData) {
   });
 }
 
+export async function mutateFormData<T>(path: string, method: string, formData: FormData) {
+  return request<T>(path, {
+    method,
+    body: formData,
+  });
+}
+
 export async function removeResource(path: string) {
   return request<null>(path, {
     method: "DELETE",
