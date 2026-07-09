@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { fetchCollection } from "@/lib/api";
-import type { TreatmentPlanRef, Visit, Warehouse, WarehouseInventory } from "@/lib/types";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import type { Clinic, TreatmentPlanRef, Visit, Warehouse, WarehouseInventory } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
@@ -19,6 +19,16 @@ type InventoryPressure = {
   pressure: "healthy" | "watch" | "critical";
 };
 
+type WarehouseForm = {
+  name: string;
+  clinic_id: string;
+};
+
+const initialForm: WarehouseForm = {
+  name: "",
+  clinic_id: "",
+};
+
 function getPressure(available: number, quantity: number) {
   if (quantity <= 0 || available / quantity > 0.5) {
     return "healthy";
@@ -33,13 +43,20 @@ function getPressure(available: number, quantity: number) {
 
 export function WarehousesWorkspace() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [clinics, setClinics] = useState<Clinic[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [plans, setPlans] = useState<TreatmentPlanRef[]>([]);
+  const [createForm, setCreateForm] = useState<WarehouseForm>(initialForm);
+  const [editForm, setEditForm] = useState<WarehouseForm>(initialForm);
   const [search, setSearch] = useState("");
   const [clinicFilter, setClinicFilter] = useState("all");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingCreate, setSavingCreate] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const filteredWarehouses = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -59,6 +76,27 @@ export function WarehousesWorkspace() {
   const selectedWarehouse = useMemo(
     () => filteredWarehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? warehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? filteredWarehouses[0] ?? warehouses[0] ?? null,
     [filteredWarehouses, selectedWarehouseId, warehouses],
+  );
+
+  const eligibleCreateClinics = useMemo(
+    () =>
+      clinics.filter(
+        (clinic) =>
+          clinic.provides_medication &&
+          !warehouses.some((warehouse) => warehouse.clinic_id === clinic.id),
+      ),
+    [clinics, warehouses],
+  );
+
+  const eligibleEditClinics = useMemo(
+    () =>
+      clinics.filter(
+        (clinic) =>
+          clinic.provides_medication &&
+          (!warehouses.some((warehouse) => warehouse.clinic_id === clinic.id && warehouse.id !== selectedWarehouse?.id) ||
+            clinic.id === selectedWarehouse?.clinic_id),
+      ),
+    [clinics, selectedWarehouse?.clinic_id, selectedWarehouse?.id, warehouses],
   );
 
   const pressureRows = useMemo<InventoryPressure[]>(() => {
@@ -105,13 +143,15 @@ export function WarehousesWorkspace() {
     setLoading(true);
     setError(null);
     try {
-      const [warehouseRows, visitRows, planRows] = await Promise.all([
+      const [warehouseRows, clinicRows, visitRows, planRows] = await Promise.all([
         fetchCollection<Warehouse>("/warehouses"),
+        fetchCollection<Clinic>("/clinics"),
         fetchCollection<Visit>("/visits"),
         fetchCollection<TreatmentPlanRef>("/treatment-plans"),
       ]);
 
       setWarehouses(warehouseRows);
+      setClinics(clinicRows);
       setVisits(visitRows);
       setPlans(planRows);
       setSelectedWarehouseId((current) => current ?? warehouseRows[0]?.id ?? null);
@@ -128,6 +168,80 @@ export function WarehousesWorkspace() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!selectedWarehouse) {
+      setEditForm(initialForm);
+      return;
+    }
+
+    setEditForm({
+      name: selectedWarehouse.name || "",
+      clinic_id: selectedWarehouse.clinic_id ? String(selectedWarehouse.clinic_id) : "",
+    });
+  }, [selectedWarehouse]);
+
+  async function createWarehouse(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingCreate(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await mutateJson("/warehouses", "POST", {
+        name: createForm.name,
+        clinic_id: Number(createForm.clinic_id),
+      });
+      setCreateForm(initialForm);
+      setNotice("Warehouse created successfully.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create warehouse.");
+    } finally {
+      setSavingCreate(false);
+    }
+  }
+
+  async function updateWarehouse(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedWarehouse) return;
+
+    setSavingEdit(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await mutateJson(`/warehouses/${selectedWarehouse.id}`, "PATCH", {
+        name: editForm.name,
+        clinic_id: Number(editForm.clinic_id),
+      });
+      setNotice(`Warehouse "${editForm.name}" updated successfully.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update warehouse.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteWarehouse(id: number) {
+    setDeletingId(id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await removeResource(`/warehouses/${id}`);
+      setNotice(`Warehouse #${id} deleted successfully.`);
+      if (selectedWarehouseId === id) {
+        setSelectedWarehouseId(null);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete warehouse.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -136,6 +250,7 @@ export function WarehousesWorkspace() {
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{notice}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Warehouses" value={stats.totalWarehouses} hint="Warehouse records currently returned by the API." />
@@ -145,7 +260,7 @@ export function WarehousesWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Warehouse Queue" description="Warehouse records tied to clinics with immediate stock pressure context.">
+        <Panel title="Warehouse Directory" description="Warehouse records tied to clinics with immediate stock pressure context.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowInput label="Search" name="warehouse-search" value={search} onChange={setSearch} placeholder="Warehouse, clinic, or id" />
             <WorkflowSelect
@@ -153,6 +268,7 @@ export function WarehousesWorkspace() {
               value={clinicFilter}
               onChange={setClinicFilter}
               options={[{ label: "All clinics", value: "all" }, ...warehouses.map((warehouse) => ({ label: warehouse.clinic?.name || warehouse.name, value: String(warehouse.clinic_id ?? "") }))]}
+              allowEmpty={false}
             />
           </div>
 
@@ -185,6 +301,42 @@ export function WarehousesWorkspace() {
         </Panel>
 
         <div className="space-y-6">
+          <Panel title="Create Warehouse" description="Only medication-enabled clinics without a warehouse are available here.">
+            <form className="space-y-4" onSubmit={createWarehouse}>
+              <WorkflowInput label="Warehouse Name" name="create-warehouse-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
+              <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={eligibleCreateClinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required emptyLabel="Select clinic" />
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                {savingCreate ? "Saving..." : "Create Warehouse"}
+              </button>
+            </form>
+          </Panel>
+
+          <Panel title="Selected Warehouse" description="Rename the warehouse or move it between eligible clinics.">
+            {selectedWarehouse ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                  <div className="text-sm font-semibold text-slate-950">{selectedWarehouse.name}</div>
+                  <div className="mt-1 text-sm text-slate-600">{selectedWarehouse.clinic?.name || "No clinic linked"}</div>
+                </div>
+
+                <form className="space-y-4" onSubmit={updateWarehouse}>
+                  <WorkflowInput label="Warehouse Name" name="edit-warehouse-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                  <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required emptyLabel="Select clinic" />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      {savingEdit ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button type="button" onClick={() => void deleteWarehouse(selectedWarehouse.id)} disabled={deletingId === selectedWarehouse.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                      {deletingId === selectedWarehouse.id ? "Deleting..." : "Delete Warehouse"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">Select a warehouse to edit it.</div>
+            )}
+          </Panel>
+
           <Panel title="Inventory Pressure" description="Available versus reserved stock for the selected warehouse.">
             {selectedWarehouse ? (
               <div className="space-y-3">
