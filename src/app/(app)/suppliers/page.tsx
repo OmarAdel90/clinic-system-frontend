@@ -1,12 +1,5 @@
-import { ResourcePage } from "@/components/resource-page";
+import { SuppliersWorkspace } from "@/components/suppliers-workspace";
 
 export default function SuppliersPage() {
-  return (
-    <ResourcePage
-      title="Suppliers"
-      description="Vendor directory for pharmaceutical purchasing, warehouse intake, and payment tracking."
-      endpoint="/suppliers"
-      preferredKeys={["id", "name", "phone_number", "created_at"]}
-    />
-  );
+  return <SuppliersWorkspace />;
 }

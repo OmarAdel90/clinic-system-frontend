@@ -174,6 +174,13 @@ export type Clinic = {
 export type Campaign = {
   id: number;
   name: string;
+  platform?: string | null;
+  description?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  budget?: number | null;
+  currency?: string | null;
+  status?: string | null;
 };
 
 export type LeadStatus = {
@@ -212,6 +219,25 @@ export type Warehouse = {
   name: string;
   clinic?: Clinic | null;
   inventories?: WarehouseInventory[] | null;
+};
+
+export type Supplier = {
+  id: number;
+  name: string;
+  phone_number?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type Pharmaceutical = {
+  SKU: string;
+  name: string;
+  arabic_name?: string | null;
+  sale_price?: number | null;
+  description?: string | null;
+  attribute?: Record<string, unknown> | unknown[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type TreatmentPlanRef = {
