@@ -12,7 +12,7 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-const DEPLOY_MARKER = "Build 2026-07-09R";
+const DEPLOY_MARKER = "Build 2026-07-09S";
 
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
@@ -96,5 +96,6 @@ export function AppShell({ user, children }: AppShellProps) {
     </div>
   );
 }
+
 
 

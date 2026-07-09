@@ -251,6 +251,27 @@ export type Pharmaceutical = {
   updated_at?: string | null;
 };
 
+export type WarehouseSupplierTransactionItem = {
+  sku: string;
+  name: string;
+  arabic_name?: string | null;
+  quantity: number;
+  price: number;
+};
+
+export type WarehouseSupplierTransaction = {
+  transaction_id: string;
+  warehouse_id: number;
+  supplier_id: number;
+  batch_number?: string | null;
+  transaction_date?: string | null;
+  items_bought?: WarehouseSupplierTransactionItem[] | null;
+  warehouse?: Warehouse | null;
+  supplier?: Supplier | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type TreatmentPlanRef = {
   id: number;
   lead_id?: number | null;

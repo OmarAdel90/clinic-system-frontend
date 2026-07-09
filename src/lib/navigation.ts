@@ -18,6 +18,12 @@ export const navItems: NavItem[] = [
   { label: "Clinics", href: "/clinics", description: "Branches and services" },
   { label: "Warehouses", href: "/warehouses", description: "Inventory and stock" },
   { label: "Suppliers", href: "/suppliers", description: "Vendors and supplier payments" },
+  {
+    label: "Supplier Transactions",
+    href: "/supplier-transactions",
+    description: "Batch intake into warehouse inventory",
+    permissions: ["view_any_warehouse_supplier_transaction", "create_warehouse_supplier_transaction", "update_warehouse_supplier_transaction", "delete_warehouse_supplier_transaction"],
+  },
   { label: "Campaigns", href: "/campaigns", description: "Marketing performance" },
   { label: "Pharmaceuticals", href: "/pharmaceuticals", description: "Medication catalog" },
   {
