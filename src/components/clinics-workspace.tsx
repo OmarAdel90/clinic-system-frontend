@@ -326,6 +326,11 @@ export function ClinicsWorkspace() {
                       </div>
                     </div>
                     <div className={`mt-3 flex flex-wrap gap-2 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                      {clinic.provides_medication ? (
+                        <span className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                          Warehouse: {clinic.warehouse?.name || "Not linked"}
+                        </span>
+                      ) : null}
                       {(clinic.services || []).slice(0, 4).map((service) => (
                         <span key={service} className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
                           {service}
