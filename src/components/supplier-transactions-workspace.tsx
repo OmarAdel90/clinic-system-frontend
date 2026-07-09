@@ -90,7 +90,7 @@ export function SupplierTransactionsWorkspace() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [pharmaceuticals, setPharmaceuticals] = useState<Pharmaceutical[]>([]);
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<TransactionForm>(initialForm);
   const [editForm, setEditForm] = useState<TransactionForm>(initialForm);
@@ -99,7 +99,7 @@ export function SupplierTransactionsWorkspace() {
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -113,7 +113,7 @@ export function SupplierTransactionsWorkspace() {
       }
 
       return [
-        transaction.transaction_id,
+        String(transaction.id),
         transaction.supplier?.name,
         transaction.warehouse?.name,
         transaction.warehouse?.clinic?.name,
@@ -125,7 +125,7 @@ export function SupplierTransactionsWorkspace() {
 
   const selectedTransaction = useMemo(
     () =>
-      transactions.find((transaction) => transaction.transaction_id === selectedTransactionId) ??
+      transactions.find((transaction) => transaction.id === selectedTransactionId) ??
       filteredTransactions[0] ??
       transactions[0] ??
       null,
@@ -133,8 +133,8 @@ export function SupplierTransactionsWorkspace() {
   );
 
   const selectedPayment = useMemo(
-    () => payments.find((payment) => payment.transaction_id === selectedTransaction?.transaction_id) ?? null,
-    [payments, selectedTransaction?.transaction_id],
+    () => payments.find((payment) => payment.transaction_id === selectedTransaction?.id) ?? null,
+    [payments, selectedTransaction?.id],
   );
 
   const stats = useMemo(
@@ -187,7 +187,7 @@ export function SupplierTransactionsWorkspace() {
       setWarehouses(warehouseRows);
       setSuppliers(supplierRows);
       setPharmaceuticals(pharmaceuticalRows);
-      setSelectedTransactionId((current) => current ?? transactionRows[0]?.transaction_id ?? null);
+      setSelectedTransactionId((current) => current ?? transactionRows[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load supplier transactions.");
     } finally {
@@ -205,17 +205,11 @@ export function SupplierTransactionsWorkspace() {
     setPaymentAmount("");
   }, [selectedTransaction]);
 
-  function updateItem(
-    kind: "create" | "edit",
-    index: number,
-    patch: Partial<TransactionItemForm>,
-  ) {
+  function updateItem(kind: "create" | "edit", index: number, patch: Partial<TransactionItemForm>) {
     const setter = kind === "create" ? setCreateForm : setEditForm;
     setter((current) => ({
       ...current,
-      items_bought: current.items_bought.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
+      items_bought: current.items_bought.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
     }));
   }
 
@@ -240,10 +234,7 @@ export function SupplierTransactionsWorkspace() {
     const setter = kind === "create" ? setCreateForm : setEditForm;
     setter((current) => ({
       ...current,
-      items_bought:
-        current.items_bought.length === 1
-          ? current.items_bought
-          : current.items_bought.filter((_, itemIndex) => itemIndex !== index),
+      items_bought: current.items_bought.length === 1 ? current.items_bought : current.items_bought.filter((_, itemIndex) => itemIndex !== index),
     }));
   }
 
@@ -291,7 +282,7 @@ export function SupplierTransactionsWorkspace() {
     setNotice(null);
 
     try {
-      await mutateJson(`/transactions/${selectedTransaction.transaction_id}`, "PATCH", buildPayload(editForm));
+      await mutateJson(`/transactions/${selectedTransaction.id}`, "PATCH", buildPayload(editForm));
       setNotice("Supplier transaction updated successfully.");
       await load({ silent: true });
     } catch (err) {
@@ -301,7 +292,7 @@ export function SupplierTransactionsWorkspace() {
     }
   }
 
-  async function deleteTransaction(transactionId: string) {
+  async function deleteTransaction(transactionId: number) {
     setDeletingId(transactionId);
     setError(null);
     setNotice(null);
@@ -385,21 +376,21 @@ export function SupplierTransactionsWorkspace() {
           ) : (
             <div className="space-y-3">
               {filteredTransactions.map((transaction) => {
-                const active = selectedTransaction?.transaction_id === transaction.transaction_id;
+                const active = selectedTransaction?.id === transaction.id;
                 const units = (transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
-                const payment = payments.find((entry) => entry.transaction_id === transaction.transaction_id);
+                const payment = payments.find((entry) => entry.transaction_id === transaction.id);
                 return (
                   <button
-                    key={transaction.transaction_id}
+                    key={transaction.id}
                     type="button"
-                    onClick={() => setSelectedTransactionId(transaction.transaction_id)}
+                    onClick={() => setSelectedTransactionId(transaction.id)}
                     className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">{transaction.supplier?.name || `Supplier #${transaction.supplier_id}`}</div>
+                        <div className="text-sm font-semibold">Transaction #{transaction.id}</div>
                         <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>
-                          {transaction.warehouse?.name || `Warehouse #${transaction.warehouse_id}`}
+                          {transaction.supplier?.name || `Supplier #${transaction.supplier_id}`} | {transaction.warehouse?.name || `Warehouse #${transaction.warehouse_id}`}
                         </div>
                       </div>
                       <div className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{formatLocalDateTime(transaction.transaction_date)}</div>
@@ -468,7 +459,7 @@ export function SupplierTransactionsWorkspace() {
             {selectedTransaction ? (
               <div className="space-y-5">
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedTransaction.transaction_id}</div>
+                  <div className="text-sm font-semibold text-slate-950">Transaction #{selectedTransaction.id}</div>
                   <div className="mt-1 text-sm text-slate-600">{selectedTransaction.supplier?.name || `Supplier #${selectedTransaction.supplier_id}`} to {selectedTransaction.warehouse?.name || `Warehouse #${selectedTransaction.warehouse_id}`}</div>
                   <div className="mt-2 text-xs text-slate-500">Recorded {formatLocalDateTime(selectedTransaction.created_at || selectedTransaction.transaction_date)}</div>
                 </div>
@@ -516,8 +507,8 @@ export function SupplierTransactionsWorkspace() {
                     <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {savingEdit ? "Saving..." : "Save Changes"}
                     </button>
-                    <button type="button" onClick={() => void deleteTransaction(selectedTransaction.transaction_id)} disabled={deletingId === selectedTransaction.transaction_id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedTransaction.transaction_id ? "Deleting..." : "Delete Transaction"}
+                    <button type="button" onClick={() => void deleteTransaction(selectedTransaction.id)} disabled={deletingId === selectedTransaction.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                      {deletingId === selectedTransaction.id ? "Deleting..." : "Delete Transaction"}
                     </button>
                   </div>
                 </form>

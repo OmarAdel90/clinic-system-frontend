@@ -260,10 +260,9 @@ export type WarehouseSupplierTransactionItem = {
 };
 
 export type WarehouseSupplierTransaction = {
-  transaction_id: string;
+  id: number;
   warehouse_id: number;
   supplier_id: number;
-  batch_number?: string | null;
   transaction_date?: string | null;
   items_bought?: WarehouseSupplierTransactionItem[] | null;
   warehouse?: Warehouse | null;
@@ -274,9 +273,8 @@ export type WarehouseSupplierTransaction = {
 
 export type SupplierPaymentHistory = {
   id: number;
-  transaction_id: string;
+  transaction_id: number;
   supplier_id: number;
-  batch_id?: string | null;
   total_amount: number;
   total_paid: number;
   payment_status?: string | null;
