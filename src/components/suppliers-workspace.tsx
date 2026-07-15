@@ -2,28 +2,65 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
-import type { Supplier, SupplierPaymentHistory, WarehouseSupplierTransaction } from "@/lib/types";
+import type {
+  Pharmaceutical,
+  Supplier,
+  SupplierPaymentHistory,
+  Warehouse,
+  WarehouseSupplierTransaction,
+} from "@/lib/types";
 import { formatLocalDateTime } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
-import { WorkflowInput } from "@/components/workflow-input";
 import { StatCard } from "@/components/stat-card";
+import { WorkflowInput } from "@/components/workflow-input";
+import { WorkflowSelect } from "@/components/workflow-select";
 
 type SupplierForm = {
   name: string;
   phone_number: string;
 };
 
+type TransactionItemForm = {
+  sku: string;
+  name: string;
+  arabic_name: string;
+  quantity: string;
+  price: string;
+};
+
+type TransactionForm = {
+  warehouse_id: string;
+  transaction_date: string;
+  items_bought: TransactionItemForm[];
+};
+
 type SupplierView = "overview" | "transactions" | "payments";
 
-const initialForm: SupplierForm = {
+const initialSupplierForm: SupplierForm = {
   name: "",
   phone_number: "",
 };
 
-function toForm(supplier?: Supplier | null): SupplierForm {
+const initialItem: TransactionItemForm = {
+  sku: "",
+  name: "",
+  arabic_name: "",
+  quantity: "1",
+  price: "0",
+};
+
+function initialTransactionForm(): TransactionForm {
+  return {
+    warehouse_id: "",
+    transaction_date: new Date().toISOString().slice(0, 10),
+    items_bought: [{ ...initialItem }],
+  };
+}
+
+function toSupplierForm(supplier?: Supplier | null): SupplierForm {
   if (!supplier) {
-    return initialForm;
+    return initialSupplierForm;
   }
 
   return {
@@ -32,8 +69,33 @@ function toForm(supplier?: Supplier | null): SupplierForm {
   };
 }
 
+function toTransactionForm(transaction?: WarehouseSupplierTransaction | null): TransactionForm {
+  if (!transaction) {
+    return initialTransactionForm();
+  }
+
+  return {
+    warehouse_id: transaction.warehouse_id ? String(transaction.warehouse_id) : "",
+    transaction_date: transaction.transaction_date ? String(transaction.transaction_date).slice(0, 10) : new Date().toISOString().slice(0, 10),
+    items_bought:
+      transaction.items_bought && transaction.items_bought.length > 0
+        ? transaction.items_bought.map((item) => ({
+            sku: item.sku || "",
+            name: item.name || "",
+            arabic_name: item.arabic_name || "",
+            quantity: String(item.quantity ?? "1"),
+            price: String(item.price ?? "0"),
+          }))
+        : [{ ...initialItem }],
+  };
+}
+
 function transactionTotal(transaction: WarehouseSupplierTransaction) {
   return (transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0) * Number(item.price ?? 0), 0);
+}
+
+function formTotal(form: TransactionForm) {
+  return form.items_bought.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.price || 0), 0);
 }
 
 function paymentBalance(payment?: SupplierPaymentHistory | null) {
@@ -62,16 +124,22 @@ export function SuppliersWorkspace() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [transactions, setTransactions] = useState<WarehouseSupplierTransaction[]>([]);
   const [payments, setPayments] = useState<SupplierPaymentHistory[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [pharmaceuticals, setPharmaceuticals] = useState<Pharmaceutical[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedView, setSelectedView] = useState<SupplierView>("overview");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [createForm, setCreateForm] = useState<SupplierForm>(initialForm);
-  const [editForm, setEditForm] = useState<SupplierForm>(initialForm);
+  const [createSupplierForm, setCreateSupplierForm] = useState<SupplierForm>(initialSupplierForm);
+  const [editSupplierForm, setEditSupplierForm] = useState<SupplierForm>(initialSupplierForm);
+  const [transactionForm, setTransactionForm] = useState<TransactionForm>(initialTransactionForm);
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [savingTransaction, setSavingTransaction] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -104,6 +172,22 @@ export function SuppliersWorkspace() {
     [payments, selectedSupplier?.id],
   );
 
+  const warehouseOptions = useMemo(
+    () =>
+      warehouses.map((warehouse) => ({
+        label: warehouse.clinic?.name ? `${warehouse.name} | ${warehouse.clinic.name}` : warehouse.name,
+        value: warehouse.id,
+      })),
+    [warehouses],
+  );
+
+  const pharmaOptions = useMemo(
+    () => pharmaceuticals.map((item) => ({ label: `${item.SKU} | ${item.name}`, value: item.SKU })),
+    [pharmaceuticals],
+  );
+
+  const pharmaLookup = useMemo(() => new Map(pharmaceuticals.map((item) => [item.SKU, item])), [pharmaceuticals]);
+
   const stats = useMemo(
     () => ({
       total: suppliers.length,
@@ -134,15 +218,18 @@ export function SuppliersWorkspace() {
     setError(null);
 
     try {
-      const [supplierRows, transactionRows, paymentRows] = await Promise.all([
+      const [supplierRows, transactionRows, paymentRows, warehouseRows, pharmaceuticalRows] = await Promise.all([
         fetchCollection<Supplier>("/suppliers"),
         fetchCollection<WarehouseSupplierTransaction>("/transactions").catch(() => []),
         fetchCollection<SupplierPaymentHistory>("/supplier-payments").catch(() => []),
+        fetchCollection<Warehouse>("/warehouses").catch(() => []),
+        fetchCollection<Pharmaceutical>("/pharmaceuticals").catch(() => []),
       ]);
       setSuppliers(supplierRows);
       setTransactions(transactionRows);
       setPayments(paymentRows);
-      setSelectedId((current) => current ?? null);
+      setWarehouses(warehouseRows);
+      setPharmaceuticals(pharmaceuticalRows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load suppliers.");
     } finally {
@@ -155,8 +242,18 @@ export function SuppliersWorkspace() {
   }, []);
 
   useEffect(() => {
-    setEditForm(toForm(selectedSupplier));
+    setEditSupplierForm(toSupplierForm(selectedSupplier));
+    setEditingTransactionId(null);
+    setTransactionForm(initialTransactionForm());
   }, [selectedSupplier]);
+
+  function openSupplierDetails(id: number) {
+    setSelectedId(id);
+    setSelectedView("overview");
+    setEditingTransactionId(null);
+    setTransactionForm(initialTransactionForm());
+    setDetailsOpen(true);
+  }
 
   async function createSupplier(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -166,10 +263,10 @@ export function SuppliersWorkspace() {
 
     try {
       await mutateJson("/suppliers", "POST", {
-        name: createForm.name,
-        phone_number: createForm.phone_number,
+        name: createSupplierForm.name,
+        phone_number: createSupplierForm.phone_number,
       });
-      setCreateForm(initialForm);
+      setCreateSupplierForm(initialSupplierForm);
       setNotice("Supplier created successfully.");
       await load();
     } catch (err) {
@@ -189,10 +286,10 @@ export function SuppliersWorkspace() {
 
     try {
       await mutateJson(`/suppliers/${selectedSupplier.id}`, "PATCH", {
-        name: editForm.name,
-        phone_number: editForm.phone_number,
+        name: editSupplierForm.name,
+        phone_number: editSupplierForm.phone_number,
       });
-      setNotice(`Supplier "${editForm.name}" updated successfully.`);
+      setNotice(`Supplier "${editSupplierForm.name}" updated successfully.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update supplier.");
@@ -222,17 +319,122 @@ export function SuppliersWorkspace() {
     }
   }
 
-  function openSupplierDetails(id: number) {
-    setSelectedId(id);
-    setSelectedView("overview");
-    setDetailsOpen(true);
+  function updateItem(index: number, patch: Partial<TransactionItemForm>) {
+    setTransactionForm((current) => ({
+      ...current,
+      items_bought: current.items_bought.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  function selectSku(index: number, sku: string) {
+    const pharmaceutical = pharmaLookup.get(sku);
+    updateItem(index, {
+      sku,
+      name: pharmaceutical?.name || "",
+      arabic_name: pharmaceutical?.arabic_name || "",
+    });
+  }
+
+  function addItemRow() {
+    setTransactionForm((current) => ({
+      ...current,
+      items_bought: [...current.items_bought, { ...initialItem }],
+    }));
+  }
+
+  function removeItemRow(index: number) {
+    setTransactionForm((current) => ({
+      ...current,
+      items_bought: current.items_bought.length === 1 ? current.items_bought : current.items_bought.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  }
+
+  function resetTransactionEditor() {
+    setEditingTransactionId(null);
+    setTransactionForm(initialTransactionForm());
+  }
+
+  function startTransactionEdit(transaction: WarehouseSupplierTransaction) {
+    setSelectedView("transactions");
+    setEditingTransactionId(transaction.id);
+    setTransactionForm(toTransactionForm(transaction));
+  }
+
+  function buildTransactionPayload() {
+    if (!selectedSupplier) {
+      return null;
+    }
+
+    return {
+      warehouse_id: Number(transactionForm.warehouse_id),
+      supplier_id: selectedSupplier.id,
+      transaction_date: transactionForm.transaction_date,
+      items_bought: transactionForm.items_bought.map((item) => ({
+        sku: item.sku,
+        name: item.name,
+        arabic_name: item.arabic_name || null,
+        quantity: Number(item.quantity),
+        price: Number(item.price),
+      })),
+    };
+  }
+
+  async function submitTransaction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedSupplier) {
+      return;
+    }
+
+    const payload = buildTransactionPayload();
+    if (!payload) {
+      return;
+    }
+
+    setSavingTransaction(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      if (editingTransactionId) {
+        await mutateJson(`/transactions/${editingTransactionId}`, "PATCH", payload);
+        setNotice("Supplier batch updated successfully.");
+      } else {
+        await mutateJson("/transactions", "POST", payload);
+        setNotice("Supplier batch recorded and warehouse inventory updated.");
+      }
+      resetTransactionEditor();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save supplier batch.");
+    } finally {
+      setSavingTransaction(false);
+    }
+  }
+
+  async function deleteTransaction(id: number) {
+    setDeletingTransactionId(id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await removeResource(`/transactions/${id}`);
+      if (editingTransactionId === id) {
+        resetTransactionEditor();
+      }
+      setNotice(`Supplier batch #${id} deleted successfully.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete supplier batch.");
+    } finally {
+      setDeletingTransactionId(null);
+    }
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Suppliers"
-        description="Work suppliers like a CRM resource: use the directory first, then open a supplier popup to inspect details, transactions, and payment position."
+        description="Work suppliers like a CRM resource: search the directory first, then open a vendor popup for profile, warehouse batches, and payment position."
       />
 
       {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
@@ -242,11 +444,11 @@ export function SuppliersWorkspace() {
         <StatCard label="Total Suppliers" value={formatCompactNumber(stats.total)} hint="Supplier records returned by the API." />
         <StatCard label="With Phone" value={formatCompactNumber(stats.withPhone)} hint="Suppliers with a reachable phone number." />
         <StatCard label="Recent Adds" value={formatCompactNumber(stats.recent)} hint="Suppliers created in the last 30 days." />
-        <StatCard label="Active Vendors" value={formatCompactNumber(stats.activeWithTransactions)} hint="Suppliers already tied to at least one warehouse transaction." />
+        <StatCard label="Active Vendors" value={formatCompactNumber(stats.activeWithTransactions)} hint="Suppliers already tied to at least one warehouse batch." />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title="Supplier Directory" description="Search suppliers, then open a selected record in a popup instead of splitting the page into a permanent detail pane.">
+        <Panel title="Supplier Directory" description="Search suppliers, then open one clean popup instead of living with a permanent split detail pane.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="supplier-search" value={search} onChange={setSearch} placeholder="Name, phone, or id" />
           </div>
@@ -271,9 +473,9 @@ export function SuppliersWorkspace() {
                       </div>
                       <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">#{supplier.id}</div>
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                      <span>{linkedTransactions} transactions</span>
-                      <span>Created {formatLocalDateTime(supplier.created_at)}</span>
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                      <span>{linkedTransactions} batches</span>
+                      <span className="truncate">Created {formatLocalDateTime(supplier.created_at)}</span>
                     </div>
                   </button>
                 );
@@ -285,8 +487,8 @@ export function SuppliersWorkspace() {
 
         <Panel title="Create Supplier" description="Add a new vendor to the directory before recording warehouse batches against it.">
           <form className="space-y-4" onSubmit={createSupplier}>
-            <WorkflowInput label="Name" name="create-supplier-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-            <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
+            <WorkflowInput label="Name" name="create-supplier-name" value={createSupplierForm.name} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, name: value }))} required />
+            <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createSupplierForm.phone_number} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
             <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
               {savingCreate ? "Saving..." : "Create Supplier"}
             </button>
@@ -296,7 +498,7 @@ export function SuppliersWorkspace() {
 
       {detailsOpen && selectedSupplier ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+          <div className="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
             <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
               <div>
                 <div className="text-lg font-semibold text-slate-950">{selectedSupplier.name}</div>
@@ -333,71 +535,156 @@ export function SuppliersWorkspace() {
               </div>
             </div>
 
-            <div className="max-h-[calc(90vh-128px)] overflow-y-auto px-5 py-5">
+            <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
               {selectedView === "overview" ? (
                 <div className="space-y-5">
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <StatCard label="Transactions" value={formatCompactNumber(selectedMetrics.totalTransactions)} hint="Warehouse intake batches recorded for this supplier." />
-                    <StatCard label="Units Received" value={formatCompactNumber(selectedMetrics.totalUnits)} hint="Total quantities received across supplier batches." />
-                    <StatCard label="Recorded Value" value={formatCompactMoney(selectedMetrics.totalValue)} hint="Transaction value accumulated for this supplier." />
-                    <StatCard label="Open Balance" value={formatCompactMoney(selectedMetrics.openBalance)} hint="Remaining unpaid supplier balance." />
+                    <StatCard label="Units Received" value={formatCompactNumber(selectedMetrics.totalUnits)} hint="Total units received from this supplier." />
+                    <StatCard label="Batch Value" value={formatCompactMoney(selectedMetrics.totalValue)} hint="Combined value across supplier batches." />
+                    <StatCard label="Open Balance" value={formatCompactMoney(selectedMetrics.openBalance)} hint="Outstanding balance from supplier payment history." />
                   </div>
 
-                  <form className="space-y-4" onSubmit={updateSupplier}>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <WorkflowInput label="Name" name="edit-supplier-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                      <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                        {savingEdit ? "Saving..." : "Save Changes"}
-                      </button>
-                      <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                        {deletingId === selectedSupplier.id ? "Deleting..." : "Delete Supplier"}
-                      </button>
-                    </div>
-                  </form>
+                  <Panel title="Supplier Profile" description="Keep supplier identity clean, then use the tabs for operational history.">
+                    <form className="space-y-4" onSubmit={updateSupplier}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <WorkflowInput label="Name" name="edit-supplier-name" value={editSupplierForm.name} onChange={(value) => setEditSupplierForm((current) => ({ ...current, name: value }))} required />
+                        <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editSupplierForm.phone_number} onChange={(value) => setEditSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                          {savingEdit ? "Saving..." : "Save Supplier"}
+                        </button>
+                        <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          {deletingId === selectedSupplier.id ? "Deleting..." : "Delete Supplier"}
+                        </button>
+                      </div>
+                    </form>
+                  </Panel>
                 </div>
               ) : null}
 
               {selectedView === "transactions" ? (
-                <div className="space-y-3">
-                  {supplierTransactions.slice(0, 12).map((transaction) => (
-                    <div key={transaction.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-slate-900">Transaction #{transaction.id}</div>
-                        <div className="text-xs text-slate-500">{formatLocalDateTime(transaction.transaction_date || transaction.created_at)}</div>
+                <div className="space-y-5">
+                  <Panel
+                    title={editingTransactionId ? `Edit Batch #${editingTransactionId}` : "Record Batch"}
+                    description="Record what this supplier delivered to a warehouse. SKUs are pulled from the pharmaceutical catalog."
+                    actions={
+                      editingTransactionId ? (
+                        <button
+                          type="button"
+                          onClick={resetTransactionEditor}
+                          className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Cancel Edit
+                        </button>
+                      ) : null
+                    }
+                  >
+                    <form className="space-y-4" onSubmit={submitTransaction}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <WorkflowSelect label="Warehouse" value={transactionForm.warehouse_id} onChange={(value) => setTransactionForm((current) => ({ ...current, warehouse_id: value }))} options={warehouseOptions} required emptyLabel="Select warehouse" />
+                        <WorkflowInput label="Transaction Date" name="supplier-transaction-date" type="date" value={transactionForm.transaction_date} onChange={(value) => setTransactionForm((current) => ({ ...current, transaction_date: value }))} required />
                       </div>
-                      <div className="mt-2 text-sm text-slate-600">{transaction.warehouse?.name || `Warehouse #${transaction.warehouse_id}`}</div>
-                      <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-4">
-                        <div>Items: {transaction.items_bought?.length ?? 0}</div>
-                        <div>Units: {(transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)}</div>
-                        <div>Value: {formatCompactMoney(transactionTotal(transaction))}</div>
-                        <div>Clinic: {transaction.warehouse?.clinic?.name || "-"}</div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-950">Batch Items</div>
+                            <div className="text-xs text-slate-500">Each row updates warehouse stock using an existing pharmaceutical SKU.</div>
+                          </div>
+                          <button type="button" onClick={addItemRow} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                            Add Item
+                          </button>
+                        </div>
+
+                        {transactionForm.items_bought.map((item, index) => (
+                          <div key={`${item.sku || "new"}-${index}`} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div className="text-sm font-medium text-slate-900">Item {index + 1}</div>
+                              <button type="button" onClick={() => removeItemRow(index)} disabled={transactionForm.items_bought.length === 1} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                                Remove
+                              </button>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                              <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku(index, value)} options={pharmaOptions} required emptyLabel="Select SKU" />
+                              <WorkflowInput label="Name" name={`supplier-item-name-${index}`} value={item.name} onChange={(value) => updateItem(index, { name: value })} required />
+                              <WorkflowInput label="Arabic Name" name={`supplier-item-arabic-name-${index}`} value={item.arabic_name} onChange={(value) => updateItem(index, { arabic_name: value })} />
+                              <WorkflowInput label="Quantity" name={`supplier-item-quantity-${index}`} type="number" value={item.quantity} onChange={(value) => updateItem(index, { quantity: value })} required />
+                              <WorkflowInput label="Unit Price" name={`supplier-item-price-${index}`} type="number" value={item.price} onChange={(value) => updateItem(index, { price: value })} required />
+                            </div>
+                          </div>
+                        ))}
                       </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                        <span>Total Batch Value</span>
+                        <span className="font-semibold text-slate-950">{formTotal(transactionForm).toFixed(2)}</span>
+                      </div>
+
+                      <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingTransaction ? "Saving..." : editingTransactionId ? "Save Batch" : "Record Batch"}
+                      </button>
+                    </form>
+                  </Panel>
+
+                  <Panel title="Recent Batches" description="Recent warehouse deliveries from this supplier.">
+                    <div className="space-y-3">
+                      {supplierTransactions.map((transaction) => {
+                        const units = (transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
+                        return (
+                          <div key={transaction.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-semibold text-slate-950">Batch #{transaction.id}</div>
+                                <div className="mt-1 text-sm text-slate-600">{transaction.warehouse?.name || `Warehouse #${transaction.warehouse_id}`}</div>
+                                <div className="mt-1 text-xs text-slate-500">{formatLocalDateTime(transaction.transaction_date)}</div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{transaction.items_bought?.length ?? 0} items</div>
+                                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatCompactNumber(units)} units</div>
+                                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatCompactMoney(transactionTotal(transaction))}</div>
+                              </div>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <button type="button" onClick={() => startTransactionEdit(transaction)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
+                                Edit
+                              </button>
+                              <button type="button" onClick={() => void deleteTransaction(transaction.id)} disabled={deletingTransactionId === transaction.id} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">
+                                {deletingTransactionId === transaction.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {supplierTransactions.length === 0 ? <div className="text-sm text-slate-500">No warehouse batches recorded for this supplier yet.</div> : null}
                     </div>
-                  ))}
-                  {supplierTransactions.length === 0 ? <div className="text-sm text-slate-500">No warehouse batches recorded for this supplier yet.</div> : null}
+                  </Panel>
                 </div>
               ) : null}
 
               {selectedView === "payments" ? (
-                <div className="space-y-3">
-                  {supplierPayments.slice(0, 12).map((payment) => (
-                    <div key={payment.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-sm font-medium text-slate-900">Payment #{payment.id}</div>
-                        <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{payment.payment_status || "unpaid"}</div>
+                <Panel title="Payment Position" description="Current payment records linked to this supplier's warehouse batches.">
+                  <div className="space-y-3">
+                    {supplierPayments.map((payment) => (
+                      <div key={payment.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-950">Payment #{payment.id}</div>
+                            <div className="mt-1 text-sm text-slate-600">Transaction #{payment.transaction_id}</div>
+                            <div className="mt-1 text-xs text-slate-500">{formatLocalDateTime(payment.created_at)}</div>
+                          </div>
+                          <div className="text-right text-xs text-slate-500">
+                            <div>Total {formatCompactMoney(Number(payment.total_amount ?? 0))}</div>
+                            <div>Paid {formatCompactMoney(Number(payment.total_paid ?? 0))}</div>
+                            <div>Open {formatCompactMoney(paymentBalance(payment))}</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                        <div>Total: {formatCompactMoney(Number(payment.total_amount ?? 0))}</div>
-                        <div>Paid: {formatCompactMoney(Number(payment.total_paid ?? 0))}</div>
-                        <div>Balance: {formatCompactMoney(paymentBalance(payment))}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {supplierPayments.length === 0 ? <div className="text-sm text-slate-500">No payment records linked to this supplier yet.</div> : null}
-                </div>
+                    ))}
+                    {supplierPayments.length === 0 ? <div className="text-sm text-slate-500">No payment records linked to this supplier yet.</div> : null}
+                  </div>
+                </Panel>
               ) : null}
             </div>
           </div>

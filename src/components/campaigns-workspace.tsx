@@ -33,6 +33,20 @@ const initialForm: CampaignForm = {
   status: "",
 };
 
+const platformOptions = [
+  { label: "Facebook", value: "facebook" },
+  { label: "Instagram", value: "instagram" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Google", value: "google" },
+  { label: "Other", value: "other" },
+];
+
+const statusOptions = [
+  { label: "Draft", value: "draft" },
+  { label: "Active", value: "active" },
+  { label: "Paused", value: "paused" },
+];
+
 function toDateInput(value?: string | null) {
   return value ? value.slice(0, 10) : "";
 }
@@ -70,6 +84,7 @@ function buildPayload(form: CampaignForm) {
 export function CampaignsWorkspace() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<CampaignForm>(initialForm);
   const [editForm, setEditForm] = useState<CampaignForm>(initialForm);
@@ -102,8 +117,8 @@ export function CampaignsWorkspace() {
   }, [campaigns, search]);
 
   const selectedCampaign = useMemo(
-    () => campaigns.find((campaign) => campaign.id === selectedId) ?? filteredCampaigns[0] ?? campaigns[0] ?? null,
-    [campaigns, filteredCampaigns, selectedId],
+    () => campaigns.find((campaign) => campaign.id === selectedId) ?? null,
+    [campaigns, selectedId],
   );
 
   const stats = useMemo(
@@ -123,7 +138,6 @@ export function CampaignsWorkspace() {
     try {
       const payload = await fetchCollection<Campaign>("/campaigns");
       setCampaigns(payload);
-      setSelectedId((current) => current ?? payload[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load campaigns.");
     } finally {
@@ -138,6 +152,11 @@ export function CampaignsWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedCampaign));
   }, [selectedCampaign]);
+
+  function openCampaign(id: number) {
+    setSelectedId(id);
+    setDetailsOpen(true);
+  }
 
   async function createCampaign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -186,6 +205,7 @@ export function CampaignsWorkspace() {
       setNotice(`Campaign #${id} deleted successfully.`);
       if (selectedId === id) {
         setSelectedId(null);
+        setDetailsOpen(false);
       }
       await load();
     } catch (err) {
@@ -199,7 +219,7 @@ export function CampaignsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Campaigns"
-        description="Set up acquisition campaigns with platform, timing, budget, and status context so lead sources stay understandable."
+        description="Keep lead acquisition sources readable: campaign setup stays on the page, and each record opens in a focused popup instead of a permanent second pane."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -213,7 +233,7 @@ export function CampaignsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Campaign List" description="Search and select a campaign to review or edit it.">
+        <Panel title="Campaign List" description="Search the list, then open a campaign popup to inspect or update it.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="campaign-search" value={search} onChange={setSearch} placeholder="Name, platform, status, or id" />
           </div>
@@ -222,89 +242,102 @@ export function CampaignsWorkspace() {
             <div className="text-sm text-slate-500">Loading campaigns...</div>
           ) : (
             <div className="space-y-3">
-              {filteredCampaigns.map((campaign) => {
-                const active = selectedCampaign?.id === campaign.id;
-                return (
-                  <button
-                    key={campaign.id}
-                    type="button"
-                    onClick={() => setSelectedId(campaign.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold">{campaign.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{campaign.platform || "No platform"}</div>
-                      </div>
-                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
-                        {campaign.status || "Draft"}
-                      </div>
+              {filteredCampaigns.map((campaign) => (
+                <button
+                  key={campaign.id}
+                  type="button"
+                  onClick={() => openCampaign(campaign.id)}
+                  className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 text-left transition hover:border-slate-300 hover:bg-white"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold text-slate-950">{campaign.name}</div>
+                      <div className="mt-1 text-sm text-slate-600">{campaign.platform || "No platform"}</div>
                     </div>
-                    <div className={`mt-3 flex flex-wrap gap-2 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                      {campaign.currency && campaign.budget != null ? <span>{campaign.budget} {campaign.currency}</span> : null}
-                      {campaign.start_date ? <span>Starts {formatLocalDateTime(campaign.start_date, { year: "numeric", month: "short", day: "numeric" })}</span> : null}
-                    </div>
-                  </button>
-                );
-              })}
+                    <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{campaign.status || "Draft"}</div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+                    {campaign.currency && campaign.budget != null ? <span>{campaign.budget} {campaign.currency}</span> : null}
+                    {campaign.start_date ? <span>Starts {formatLocalDateTime(campaign.start_date, { year: "numeric", month: "short", day: "numeric" })}</span> : null}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </Panel>
 
-        <div className="space-y-6">
-          <Panel title="Create Campaign" description="Capture enough context that downstream lead reporting stays readable.">
-            <form className="space-y-4" onSubmit={createCampaign}>
-              <div className="grid gap-4 md:grid-cols-2">
-                <WorkflowInput label="Name" name="create-campaign-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-                <WorkflowSelect label="Platform" value={createForm.platform} onChange={(value) => setCreateForm((current) => ({ ...current, platform: value }))} options={[{ label: "Facebook", value: "facebook" }, { label: "Instagram", value: "instagram" }, { label: "WhatsApp", value: "whatsapp" }, { label: "Google", value: "google" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
-                <WorkflowInput label="Start Date" name="create-campaign-start" type="date" value={createForm.start_date} onChange={(value) => setCreateForm((current) => ({ ...current, start_date: value }))} />
-                <WorkflowInput label="End Date" name="create-campaign-end" type="date" value={createForm.end_date} onChange={(value) => setCreateForm((current) => ({ ...current, end_date: value }))} />
-                <WorkflowInput label="Budget" name="create-campaign-budget" type="number" value={createForm.budget} onChange={(value) => setCreateForm((current) => ({ ...current, budget: value }))} />
-                <WorkflowInput label="Currency" name="create-campaign-currency" value={createForm.currency} onChange={(value) => setCreateForm((current) => ({ ...current, currency: value.toUpperCase() }))} placeholder="EGP" />
-                <WorkflowSelect label="Status" value={createForm.status} onChange={(value) => setCreateForm((current) => ({ ...current, status: value }))} options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} emptyLabel="No status" />
-              </div>
-              <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} placeholder="Acquisition goal, targeting notes, or messaging context" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                {savingCreate ? "Saving..." : "Create Campaign"}
-              </button>
-            </form>
-          </Panel>
-
-          <Panel title="Selected Campaign" description="Keep campaign naming, timing, and budget clean over time.">
-            {selectedCampaign ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedCampaign.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedCampaign.platform || "No platform"}</div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateCampaign}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <WorkflowInput label="Name" name="edit-campaign-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowSelect label="Platform" value={editForm.platform} onChange={(value) => setEditForm((current) => ({ ...current, platform: value }))} options={[{ label: "Facebook", value: "facebook" }, { label: "Instagram", value: "instagram" }, { label: "WhatsApp", value: "whatsapp" }, { label: "Google", value: "google" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
-                    <WorkflowInput label="Start Date" name="edit-campaign-start" type="date" value={editForm.start_date} onChange={(value) => setEditForm((current) => ({ ...current, start_date: value }))} />
-                    <WorkflowInput label="End Date" name="edit-campaign-end" type="date" value={editForm.end_date} onChange={(value) => setEditForm((current) => ({ ...current, end_date: value }))} />
-                    <WorkflowInput label="Budget" name="edit-campaign-budget" type="number" value={editForm.budget} onChange={(value) => setEditForm((current) => ({ ...current, budget: value }))} />
-                    <WorkflowInput label="Currency" name="edit-campaign-currency" value={editForm.currency} onChange={(value) => setEditForm((current) => ({ ...current, currency: value.toUpperCase() }))} />
-                    <WorkflowSelect label="Status" value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} options={[{ label: "Draft", value: "draft" }, { label: "Active", value: "active" }, { label: "Paused", value: "paused" }]} emptyLabel="No status" />
-                  </div>
-                  <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteCampaign(selectedCampaign.id)} disabled={deletingId === selectedCampaign.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedCampaign.id ? "Deleting..." : "Delete Campaign"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a campaign to edit it.</div>
-            )}
-          </Panel>
-        </div>
+        <Panel title="Create Campaign" description="Capture enough context that downstream lead reporting stays readable.">
+          <form className="space-y-4" onSubmit={createCampaign}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <WorkflowInput label="Name" name="create-campaign-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
+              <WorkflowSelect label="Platform" value={createForm.platform} onChange={(value) => setCreateForm((current) => ({ ...current, platform: value }))} options={platformOptions} required allowEmpty={false} />
+              <WorkflowInput label="Start Date" name="create-campaign-start" type="date" value={createForm.start_date} onChange={(value) => setCreateForm((current) => ({ ...current, start_date: value }))} />
+              <WorkflowInput label="End Date" name="create-campaign-end" type="date" value={createForm.end_date} onChange={(value) => setCreateForm((current) => ({ ...current, end_date: value }))} />
+              <WorkflowInput label="Budget" name="create-campaign-budget" type="number" value={createForm.budget} onChange={(value) => setCreateForm((current) => ({ ...current, budget: value }))} />
+              <WorkflowInput label="Currency" name="create-campaign-currency" value={createForm.currency} onChange={(value) => setCreateForm((current) => ({ ...current, currency: value.toUpperCase() }))} placeholder="EGP" />
+              <WorkflowSelect label="Status" value={createForm.status} onChange={(value) => setCreateForm((current) => ({ ...current, status: value }))} options={statusOptions} emptyLabel="No status" />
+            </div>
+            <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} placeholder="Acquisition goal, targeting notes, or messaging context" />
+            <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+              {savingCreate ? "Saving..." : "Create Campaign"}
+            </button>
+          </form>
+        </Panel>
       </div>
+
+      {detailsOpen && selectedCampaign ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedCampaign.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedCampaign.platform || "No platform"}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-76px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Status" value={selectedCampaign.status || "Draft"} hint="Current operating status." />
+                <StatCard label="Budget" value={selectedCampaign.budget != null ? `${selectedCampaign.budget}` : "0"} hint={selectedCampaign.currency || "No currency"} />
+                <StatCard label="Starts" value={selectedCampaign.start_date ? toDateInput(selectedCampaign.start_date) : "-"} hint="Campaign start date." />
+                <StatCard label="Ends" value={selectedCampaign.end_date ? toDateInput(selectedCampaign.end_date) : "-"} hint="Campaign end date." />
+              </div>
+
+              <div className="mt-5">
+                <Panel title="Campaign Details" description="Update campaign naming, timing, budget, and context without leaving the list view.">
+                  <form className="space-y-4" onSubmit={updateCampaign}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <WorkflowInput label="Name" name="edit-campaign-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                      <WorkflowSelect label="Platform" value={editForm.platform} onChange={(value) => setEditForm((current) => ({ ...current, platform: value }))} options={platformOptions} required allowEmpty={false} />
+                      <WorkflowInput label="Start Date" name="edit-campaign-start" type="date" value={editForm.start_date} onChange={(value) => setEditForm((current) => ({ ...current, start_date: value }))} />
+                      <WorkflowInput label="End Date" name="edit-campaign-end" type="date" value={editForm.end_date} onChange={(value) => setEditForm((current) => ({ ...current, end_date: value }))} />
+                      <WorkflowInput label="Budget" name="edit-campaign-budget" type="number" value={editForm.budget} onChange={(value) => setEditForm((current) => ({ ...current, budget: value }))} />
+                      <WorkflowInput label="Currency" name="edit-campaign-currency" value={editForm.currency} onChange={(value) => setEditForm((current) => ({ ...current, currency: value.toUpperCase() }))} />
+                      <WorkflowSelect label="Status" value={editForm.status} onChange={(value) => setEditForm((current) => ({ ...current, status: value }))} options={statusOptions} emptyLabel="No status" />
+                    </div>
+                    <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteCampaign(selectedCampaign.id)} disabled={deletingId === selectedCampaign.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {deletingId === selectedCampaign.id ? "Deleting..." : "Delete Campaign"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
