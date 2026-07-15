@@ -81,6 +81,7 @@ function parseAttribute(value: string) {
 export function PharmaceuticalsWorkspace() {
   const [items, setItems] = useState<Pharmaceutical[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<PharmaceuticalForm>(initialForm);
   const [editForm, setEditForm] = useState<PharmaceuticalForm>(initialForm);
@@ -105,10 +106,7 @@ export function PharmaceuticalsWorkspace() {
     });
   }, [items, search]);
 
-  const selectedItem = useMemo(
-    () => items.find((item) => item.SKU === selectedSku) ?? filteredItems[0] ?? items[0] ?? null,
-    [filteredItems, items, selectedSku],
-  );
+  const selectedItem = useMemo(() => items.find((item) => item.SKU === selectedSku) ?? null, [items, selectedSku]);
 
   const stats = useMemo(
     () => ({
@@ -127,7 +125,6 @@ export function PharmaceuticalsWorkspace() {
     try {
       const payload = await fetchCollection<Pharmaceutical>("/pharmaceuticals");
       setItems(payload);
-      setSelectedSku((current) => current ?? payload[0]?.SKU ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load pharmaceuticals.");
     } finally {
@@ -204,6 +201,7 @@ export function PharmaceuticalsWorkspace() {
       setNotice(`Pharmaceutical ${sku} deleted successfully.`);
       if (selectedSku === sku) {
         setSelectedSku(null);
+        setDetailsOpen(false);
       }
       await load();
     } catch (err) {
@@ -211,6 +209,11 @@ export function PharmaceuticalsWorkspace() {
     } finally {
       setDeletingSku(null);
     }
+  }
+
+  function openItemDetails(sku: string) {
+    setSelectedSku(sku);
+    setDetailsOpen(true);
   }
 
   return (
@@ -231,7 +234,7 @@ export function PharmaceuticalsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Catalog" description="Search and select a pharmaceutical record to review or edit it.">
+        <Panel title="Catalog" description="Search the catalog, then open a focused popup to review or edit a medication record.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="pharma-search" value={search} onChange={setSearch} placeholder="SKU, name, Arabic name, or description" />
           </div>
@@ -246,19 +249,19 @@ export function PharmaceuticalsWorkspace() {
                   <button
                     key={item.SKU}
                     type="button"
-                    onClick={() => setSelectedSku(item.SKU)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    onClick={() => openItemDetails(item.SKU)}
+                    className={`w-full rounded-lg border p-4 text-left transition ${active ? "border-slate-300 bg-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">{item.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{item.arabic_name || item.SKU}</div>
+                        <div className="text-sm font-semibold text-slate-950">{item.name}</div>
+                        <div className="mt-1 text-sm text-slate-600">{item.arabic_name || item.SKU}</div>
                       </div>
-                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                      <div className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                         {item.SKU}
                       </div>
                     </div>
-                    <div className={`mt-3 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div className="mt-3 text-xs text-slate-500">
                       Price: {item.sale_price ?? 0}
                     </div>
                   </button>
@@ -284,41 +287,61 @@ export function PharmaceuticalsWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected Pharmaceutical" description="Update SKU metadata, pricing, and descriptive fields for the selected item.">
-            {selectedItem ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedItem.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedItem.SKU}</div>
-                  <div className="mt-2 text-xs text-slate-500">Updated {formatLocalDateTime(selectedItem.updated_at)}</div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateItem}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <WorkflowInput label="SKU" name="edit-pharma-sku" value={editForm.SKU} onChange={(value) => setEditForm((current) => ({ ...current, SKU: value }))} required />
-                    <WorkflowInput label="Name" name="edit-pharma-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowInput label="Arabic Name" name="edit-pharma-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} />
-                    <WorkflowInput label="Sale Price" name="edit-pharma-price" type="number" value={editForm.sale_price} onChange={(value) => setEditForm((current) => ({ ...current, sale_price: value }))} required />
-                  </div>
-                  <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
-                  <WorkflowTextarea label="Attributes" value={editForm.attribute} onChange={(value) => setEditForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteItem(selectedItem.SKU)} disabled={deletingSku === selectedItem.SKU} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingSku === selectedItem.SKU ? "Deleting..." : "Delete Pharmaceutical"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a pharmaceutical to edit it.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedItem ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedItem.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedItem.SKU}</div>
+                <div className="mt-2 text-xs text-slate-500">Updated {formatLocalDateTime(selectedItem.updated_at)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="SKU" value={selectedItem.SKU} hint="Catalog SKU." />
+                <StatCard label="Price" value={selectedItem.sale_price ?? 0} hint="Configured sale price." />
+                <StatCard label="Arabic Name" value={selectedItem.arabic_name || "-"} hint="Localized display name." />
+                <StatCard label="Attributes" value={selectedItem.attribute ? Object.keys((selectedItem.attribute as Record<string, unknown>) || {}).length : 0} hint="Structured metadata entries." />
+              </div>
+
+              <div className="mt-5">
+                <Panel title="Pharmaceutical Details" description="Update SKU metadata, pricing, and descriptive fields without leaving the catalog view.">
+                  <form className="space-y-4" onSubmit={updateItem}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <WorkflowInput label="SKU" name="edit-pharma-sku" value={editForm.SKU} onChange={(value) => setEditForm((current) => ({ ...current, SKU: value }))} required />
+                      <WorkflowInput label="Name" name="edit-pharma-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                      <WorkflowInput label="Arabic Name" name="edit-pharma-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} />
+                      <WorkflowInput label="Sale Price" name="edit-pharma-price" type="number" value={editForm.sale_price} onChange={(value) => setEditForm((current) => ({ ...current, sale_price: value }))} required />
+                    </div>
+                    <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
+                    <WorkflowTextarea label="Attributes" value={editForm.attribute} onChange={(value) => setEditForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteItem(selectedItem.SKU)} disabled={deletingSku === selectedItem.SKU} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {deletingSku === selectedItem.SKU ? "Deleting..." : "Delete Pharmaceutical"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
