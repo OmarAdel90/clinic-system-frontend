@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
 import type {
   Pharmaceutical,
   Supplier,
+  SupplierPaymentEvent,
   SupplierPaymentHistory,
   Warehouse,
   WarehouseSupplierTransaction,
@@ -125,6 +126,10 @@ function formatExactMoney(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(value);
+}
+
+function formatEventActor(event?: SupplierPaymentEvent | null) {
+  return event?.recorded_by_user?.name || "System";
 }
 
 type SearchableOption = {
@@ -251,11 +256,13 @@ export function SuppliersWorkspace() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingTransaction, setSavingTransaction] = useState(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<number, string>>({});
+  const [paymentNotes, setPaymentNotes] = useState<Record<number, string>>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [payingId, setPayingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const transactionEditorRef = useRef<HTMLDivElement | null>(null);
 
   const filteredSuppliers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -357,9 +364,12 @@ export function SuppliersWorkspace() {
 
   useEffect(() => {
     setEditSupplierForm(toSupplierForm(selectedSupplier));
+  }, [selectedSupplier]);
+
+  useEffect(() => {
     setEditingTransactionId(null);
     setTransactionForm(initialTransactionForm());
-  }, [selectedSupplier]);
+  }, [selectedSupplier?.id]);
 
   function openSupplierDetails(id: number) {
     setSelectedId(id);
@@ -472,6 +482,9 @@ export function SuppliersWorkspace() {
     setSelectedView("transactions");
     setEditingTransactionId(transaction.id);
     setTransactionForm(toTransactionForm(transaction));
+    window.setTimeout(() => {
+      transactionEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   }
 
   function buildTransactionPayload() {
@@ -559,8 +572,10 @@ export function SuppliersWorkspace() {
     try {
       await mutateJson(`/supplier-payments/${payment.id}/pay`, "PATCH", {
         amount,
+        notes: paymentNotes[payment.id]?.trim() || null,
       });
       setPaymentAmounts((current) => ({ ...current, [payment.id]: "" }));
+      setPaymentNotes((current) => ({ ...current, [payment.id]: "" }));
       setNotice("Supplier payment recorded successfully.");
       await load();
     } catch (err) {
@@ -706,6 +721,7 @@ export function SuppliersWorkspace() {
 
               {selectedView === "transactions" ? (
                 <div className="space-y-5">
+                  <div ref={transactionEditorRef} />
                   <Panel
                     title={editingTransactionId ? `Edit Batch #${editingTransactionId}` : "Record Batch"}
                     description="Record what this supplier delivered to a warehouse. SKUs are pulled from the pharmaceutical catalog."
@@ -766,7 +782,7 @@ export function SuppliersWorkspace() {
 
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                         <span>Total Batch Value</span>
-                        <span className="font-semibold text-slate-950">{formTotal(transactionForm).toFixed(2)}</span>
+                        <span className="font-semibold text-slate-950">{formatExactMoney(formTotal(transactionForm))}</span>
                       </div>
 
                       <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
@@ -790,7 +806,7 @@ export function SuppliersWorkspace() {
                               <div className="flex flex-wrap items-center gap-2">
                                 <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{transaction.items_bought?.length ?? 0} items</div>
                                 <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatCompactNumber(units)} units</div>
-                                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatCompactMoney(transactionTotal(transaction))}</div>
+                                <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatExactMoney(transactionTotal(transaction))}</div>
                               </div>
                             </div>
                             <div className="mt-3 space-y-2">
@@ -806,8 +822,8 @@ export function SuppliersWorkspace() {
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                                       <span>{formatCompactNumber(Number(item.quantity ?? 0))} units</span>
-                                      <span>@ {formatCompactMoney(Number(item.price ?? 0))}</span>
-                                      <span className="font-medium text-slate-900">{formatCompactMoney(Number(item.quantity ?? 0) * Number(item.price ?? 0))}</span>
+                                      <span>@ {formatExactMoney(Number(item.price ?? 0))}</span>
+                                      <span className="font-medium text-slate-900">{formatExactMoney(Number(item.quantity ?? 0) * Number(item.price ?? 0))}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -860,6 +876,15 @@ export function SuppliersWorkspace() {
                                 placeholder="0.00"
                               />
                             </div>
+                            <div className="min-w-0 flex-1">
+                              <WorkflowInput
+                                label="Notes"
+                                name={`supplier-payment-note-${payment.id}`}
+                                value={paymentNotes[payment.id] ?? ""}
+                                onChange={(value) => setPaymentNotes((current) => ({ ...current, [payment.id]: value }))}
+                                placeholder="Optional note"
+                              />
+                            </div>
                             <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                               {payingId === payment.id ? "Saving..." : "Add Payment"}
                             </button>
@@ -867,6 +892,27 @@ export function SuppliersWorkspace() {
                         ) : (
                           <div className="mt-3 text-xs font-medium text-emerald-700">Fully paid.</div>
                         )}
+
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="text-sm font-medium text-slate-900">Payment Events</div>
+                          <div className="mt-3 space-y-2">
+                            {(payment.payment_events ?? []).map((eventRecord) => (
+                              <div key={eventRecord.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-sm font-medium text-slate-900">{formatExactMoney(Number(eventRecord.amount ?? 0))}</div>
+                                    <div className="mt-1 text-xs text-slate-500">
+                                      {formatLocalDateTime(eventRecord.paid_at || eventRecord.created_at)} by {formatEventActor(eventRecord)}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-slate-500">Event #{eventRecord.id}</div>
+                                </div>
+                                {eventRecord.notes ? <div className="mt-2 text-xs text-slate-600">{eventRecord.notes}</div> : null}
+                              </div>
+                            ))}
+                            {(payment.payment_events ?? []).length === 0 ? <div className="text-xs text-slate-500">No payment events recorded yet.</div> : null}
+                          </div>
+                        </div>
                       </div>
                     ))}
                     {supplierPayments.length === 0 ? <div className="text-sm text-slate-500">No payment records linked to this supplier yet.</div> : null}

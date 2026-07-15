@@ -300,6 +300,19 @@ export type SupplierPaymentHistory = {
   payment_status?: string | null;
   transaction?: WarehouseSupplierTransaction | null;
   supplier?: Supplier | null;
+  payment_events?: SupplierPaymentEvent[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type SupplierPaymentEvent = {
+  id: number;
+  supplier_payment_history_id: number;
+  amount: number;
+  paid_at?: string | null;
+  recorded_by?: number | null;
+  notes?: string | null;
+  recorded_by_user?: User | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
