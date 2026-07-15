@@ -7,6 +7,8 @@
   --panel: #fbfdff;
   --line: #dbe4ef;
   --shadow-soft: 0 18px 50px rgba(15, 23, 42, 0.08);
+  --font-geist-sans: "Inter", "Segoe UI", Arial, sans-serif;
+  --font-geist-mono: "SFMono-Regular", "Cascadia Code", "Consolas", monospace;
 }
 
 @theme inline {
