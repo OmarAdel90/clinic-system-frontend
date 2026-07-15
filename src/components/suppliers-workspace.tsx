@@ -120,6 +120,118 @@ function formatCompactMoney(value: number) {
   }).format(value);
 }
 
+function formatExactMoney(value: number) {
+  return new Intl.NumberFormat("en", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  }).format(value);
+}
+
+type SearchableOption = {
+  label: string;
+  value: string;
+};
+
+type SearchableSelectProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: SearchableOption[];
+  placeholder?: string;
+  listId: string;
+};
+
+function SearchableSelect({ label, value, onChange, options, placeholder, listId }: SearchableSelectProps) {
+  const selectedOption = options.find((option) => option.value === value) ?? null;
+  const [query, setQuery] = useState(selectedOption?.label ?? value);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setQuery(selectedOption?.label ?? value);
+  }, [selectedOption?.label, value]);
+
+  const filteredOptions = options
+    .filter((option) => {
+      const term = query.trim().toLowerCase();
+      if (!term) {
+        return true;
+      }
+
+      return option.label.toLowerCase().includes(term) || option.value.toLowerCase().includes(term);
+    })
+    .slice(0, 10);
+
+  function selectOption(option: SearchableOption) {
+    setQuery(option.label);
+    onChange(option.value);
+    setOpen(false);
+  }
+
+  function syncTypedValue(nextValue: string) {
+    setQuery(nextValue);
+    setOpen(true);
+
+    const exact = options.find(
+      (option) =>
+        option.value.toLowerCase() === nextValue.trim().toLowerCase() ||
+        option.label.toLowerCase() === nextValue.trim().toLowerCase(),
+    );
+
+    if (exact) {
+      onChange(exact.value);
+      return;
+    }
+
+    if (!nextValue.trim()) {
+      onChange("");
+    }
+  }
+
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <div className="relative">
+        <input
+          list={listId}
+          value={query}
+          onChange={(event) => syncTypedValue(event.target.value)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            window.setTimeout(() => {
+              setOpen(false);
+              if (!value) {
+                return;
+              }
+
+              const selected = options.find((option) => option.value === value);
+              if (selected) {
+                setQuery(selected.label);
+              }
+            }, 120);
+          }}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-5 text-slate-900 outline-none transition focus:border-slate-400"
+        />
+        {open && filteredOptions.length > 0 ? (
+          <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+            {filteredOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectOption(option)}
+                className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 transition last:border-b-0 hover:bg-slate-50"
+              >
+                <div className="break-words leading-5">{option.label}</div>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </label>
+  );
+}
+
 export function SuppliersWorkspace() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [transactions, setTransactions] = useState<WarehouseSupplierTransaction[]>([]);
@@ -635,7 +747,14 @@ export function SuppliersWorkspace() {
                               </button>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                              <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku(index, value)} options={pharmaOptions} required emptyLabel="Select SKU" />
+                              <SearchableSelect
+                                label="SKU"
+                                value={item.sku}
+                                onChange={(value) => selectSku(index, value)}
+                                options={pharmaOptions}
+                                placeholder="Search SKU or pick one"
+                                listId={`supplier-sku-options-${index}`}
+                              />
                               <WorkflowInput label="Name" name={`supplier-item-name-${index}`} value={item.name} onChange={(value) => updateItem(index, { name: value })} required />
                               <WorkflowInput label="Arabic Name" name={`supplier-item-arabic-name-${index}`} value={item.arabic_name} onChange={(value) => updateItem(index, { arabic_name: value })} />
                               <WorkflowInput label="Quantity" name={`supplier-item-quantity-${index}`} type="number" value={item.quantity} onChange={(value) => updateItem(index, { quantity: value })} required />
@@ -724,9 +843,9 @@ export function SuppliersWorkspace() {
                             <div className="mt-1 text-xs text-slate-500">Status: {payment.payment_status || "unpaid"}</div>
                           </div>
                           <div className="text-right text-xs text-slate-500">
-                            <div>Total {formatCompactMoney(Number(payment.total_amount ?? 0))}</div>
-                            <div>Paid {formatCompactMoney(Number(payment.total_paid ?? 0))}</div>
-                            <div>Open {formatCompactMoney(paymentBalance(payment))}</div>
+                            <div>Total {formatExactMoney(Number(payment.total_amount ?? 0))}</div>
+                            <div>Paid {formatExactMoney(Number(payment.total_paid ?? 0))}</div>
+                            <div>Open {formatExactMoney(paymentBalance(payment))}</div>
                           </div>
                         </div>
                         {paymentBalance(payment) > 0 ? (
