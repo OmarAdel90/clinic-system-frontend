@@ -31,6 +31,7 @@ async function request<T>(path: string, options: RequestOptions = {}) {
     method: options.method ?? "GET",
     headers,
     body: options.body ?? null,
+    cache: "no-store",
   });
 
   const contentType = response.headers.get("content-type") ?? "";

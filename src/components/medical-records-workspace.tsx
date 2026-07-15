@@ -89,6 +89,7 @@ export function MedicalRecordsWorkspace() {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string>(leadFromQuery);
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<MedicalRecordForm>({ ...initialForm, lead_id: leadFromQuery });
   const [editForm, setEditForm] = useState<MedicalRecordForm>(initialForm);
@@ -113,10 +114,7 @@ export function MedicalRecordsWorkspace() {
     });
   }, [leads, records, search]);
 
-  const selectedRecord = useMemo(
-    () => filteredRecords.find((record) => record.id === selectedRecordId) ?? records.find((record) => record.id === selectedRecordId) ?? filteredRecords[0] ?? records[0] ?? null,
-    [filteredRecords, records, selectedRecordId],
-  );
+  const selectedRecord = useMemo(() => records.find((record) => record.id === selectedRecordId) ?? null, [records, selectedRecordId]);
 
   const selectedLead = useMemo(
     () => leads.find((lead) => String(lead.id) === selectedLeadId) ?? null,
@@ -134,7 +132,7 @@ export function MedicalRecordsWorkspace() {
   );
 
   async function loadLeads() {
-    const leadRows = await fetchCollection<Lead>("/leads");
+    const leadRows = await fetchCollection<Lead>("/leads/picker?limit=200");
     const defaultLeadId = leadFromQuery || String(leadRows[0]?.id ?? "");
     setLeads(leadRows);
     setSelectedLeadId(defaultLeadId);
@@ -149,9 +147,9 @@ export function MedicalRecordsWorkspace() {
       return;
     }
 
-    const recordRows = await fetchCollection<MedicalRecord>(`/leads/${leadId}/medical-records`);
-    setRecords(recordRows);
-    setSelectedRecordId((current) => current ?? recordRows[0]?.id ?? null);
+      const recordRows = await fetchCollection<MedicalRecord>(`/leads/${leadId}/medical-records`);
+      setRecords(recordRows);
+      setSelectedRecordId((current) => (current && recordRows.some((record) => record.id === current) ? current : recordRows[0]?.id ?? null));
   }
 
   async function bootstrap() {
@@ -178,12 +176,15 @@ export function MedicalRecordsWorkspace() {
     setEditForm(toForm(selectedRecord));
   }, [selectedRecord]);
 
-  async function refreshCurrentLead() {
-    if (!selectedLeadId) {
-      return;
-    }
+  function syncRecord(updatedRecord: MedicalRecord) {
+    setRecords((current) => {
+      const exists = current.some((record) => record.id === updatedRecord.id);
+      if (!exists) {
+        return [updatedRecord, ...current];
+      }
 
-    await loadRecords(selectedLeadId);
+      return current.map((record) => (record.id === updatedRecord.id ? updatedRecord : record));
+    });
   }
 
   async function changeLead(value: string) {
@@ -225,10 +226,11 @@ export function MedicalRecordsWorkspace() {
       formData.append("type", createForm.type);
       formData.append("notes", createForm.notes);
       formData.append("file", createForm.file);
-      await uploadFile(`/leads/${createForm.lead_id}/medical-records`, formData);
+      const createdRecord = await uploadFile<MedicalRecord>(`/leads/${createForm.lead_id}/medical-records`, formData);
+      syncRecord(createdRecord);
+      setSelectedRecordId(createdRecord.id);
       setCreateForm({ ...initialForm, lead_id: createForm.lead_id, type: createForm.type });
       setNotice("Medical record uploaded successfully.");
-      await refreshCurrentLead();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload medical record.");
     } finally {
@@ -252,10 +254,13 @@ export function MedicalRecordsWorkspace() {
       formData.append("notes", editForm.notes);
       if (editForm.file) {
         formData.append("file", editForm.file);
+        const updatedRecord = await uploadFile<MedicalRecord>(`/medical-records/${selectedRecord.id}`, formData);
+        syncRecord(updatedRecord);
+      } else {
+        const updatedRecord = await mutateFormData<MedicalRecord>(`/medical-records/${selectedRecord.id}`, "PATCH", formData);
+        syncRecord(updatedRecord);
       }
-      await mutateFormData(`/medical-records/${selectedRecord.id}`, "PATCH", formData);
       setNotice(`Medical record #${selectedRecord.id} updated successfully.`);
-      await refreshCurrentLead();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update medical record.");
     } finally {
@@ -270,16 +275,22 @@ export function MedicalRecordsWorkspace() {
 
     try {
       await removeResource(`/medical-records/${id}`);
+      setRecords((current) => current.filter((record) => record.id !== id));
       setNotice(`Medical record #${id} deleted successfully.`);
       if (selectedRecordId === id) {
         setSelectedRecordId(null);
+        setDetailsOpen(false);
       }
-      await refreshCurrentLead();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to delete medical record.");
     } finally {
       setDeletingId(null);
     }
+  }
+
+  function openRecordDetails(id: number) {
+    setSelectedRecordId(id);
+    setDetailsOpen(true);
   }
 
   return (
@@ -300,7 +311,7 @@ export function MedicalRecordsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Record Library" description="Pick a lead, then review the files currently attached to that lead.">
+        <Panel title="Record Library" description="Pick a lead, then open a focused popup to review the files currently attached to that lead.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowSelect
               label="Lead"
@@ -323,21 +334,21 @@ export function MedicalRecordsWorkspace() {
                   <button
                     key={record.id}
                     type="button"
-                    onClick={() => setSelectedRecordId(record.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    onClick={() => openRecordDetails(record.id)}
+                    className={`w-full rounded-lg border p-4 text-left transition ${active ? "border-slate-300 bg-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">{record.original_name || `Record #${record.id}`}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{record.type}</div>
+                        <div className="text-sm font-semibold text-slate-950">{record.original_name || `Record #${record.id}`}</div>
+                        <div className="mt-1 text-sm text-slate-600">{record.type}</div>
                       </div>
-                      <div className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{record.id}</div>
+                      <div className="text-xs text-slate-500">#{record.id}</div>
                     </div>
-                    <div className={`mt-3 grid gap-2 text-xs md:grid-cols-2 ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
                       <div>{record.mime_type || "Unknown file type"}</div>
                       <div>{formatLocalDateTime(record.created_at)}</div>
                     </div>
-                    {record.notes ? <div className={`mt-3 text-xs ${active ? "text-slate-200" : "text-slate-500"}`}>{record.notes}</div> : null}
+                    {record.notes ? <div className="mt-3 text-xs text-slate-500">{record.notes}</div> : null}
                   </button>
                 );
               })}
@@ -361,48 +372,70 @@ export function MedicalRecordsWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected Record" description="Update the record metadata, replace the file if needed, or open the stored attachment.">
-            {selectedRecord ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedRecord.original_name || `Record #${selectedRecord.id}`}</div>
-                  <div className="mt-1 text-sm text-slate-600">{describeLead(selectedLead)}</div>
-                  <div className="mt-2 text-xs text-slate-500">Uploaded {formatLocalDateTime(selectedRecord.created_at)}</div>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/file`, "view", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-                    View File
-                  </button>
-                  <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/download`, "download", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-                    Download File
-                  </button>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateRecord}>
-                  <WorkflowSelect label="Type" value={editForm.type} onChange={(value) => setEditForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
-                  <WorkflowTextarea label="Notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
-                  <label className="block space-y-2">
-                    <span className="text-sm font-medium text-slate-700">Replace File</span>
-                    <input type="file" onChange={onEditFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" />
-                  </label>
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteRecord(selectedRecord.id)} disabled={deletingId === selectedRecord.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedRecord.id ? "Deleting..." : "Delete Record"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a medical record to inspect or edit it.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedRecord ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedRecord.original_name || `Record #${selectedRecord.id}`}</div>
+                <div className="mt-1 text-sm text-slate-600">{describeLead(selectedLead)}</div>
+                <div className="mt-2 text-xs text-slate-500">Uploaded {formatLocalDateTime(selectedRecord.created_at)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Type" value={selectedRecord.type} hint="Record category." />
+                <StatCard label="Lead" value={describeLead(selectedLead) || "-"} hint="Linked lead." />
+                <StatCard label="File Type" value={selectedRecord.mime_type || "-"} hint="Stored mime type." />
+                <StatCard label="Uploaded" value={selectedRecord.created_at ? formatLocalDateTime(selectedRecord.created_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Upload date." />
+              </div>
+
+              <div className="mt-5 space-y-5">
+                <Panel title="File Access" description="Open the stored attachment directly or download a local copy.">
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/file`, "view", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                      View File
+                    </button>
+                    <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/download`, "download", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                      Download File
+                    </button>
+                  </div>
+                </Panel>
+
+                <Panel title="Record Details" description="Update the record metadata, replace the file if needed, or remove the record.">
+                  <form className="space-y-4" onSubmit={updateRecord}>
+                    <WorkflowSelect label="Type" value={editForm.type} onChange={(value) => setEditForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
+                    <WorkflowTextarea label="Notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
+                    <label className="block space-y-2">
+                      <span className="text-sm font-medium text-slate-700">Replace File</span>
+                      <input type="file" onChange={onEditFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" />
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteRecord(selectedRecord.id)} disabled={deletingId === selectedRecord.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {deletingId === selectedRecord.id ? "Deleting..." : "Delete Record"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

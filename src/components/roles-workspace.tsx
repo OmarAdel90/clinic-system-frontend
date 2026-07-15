@@ -57,6 +57,7 @@ export function RolesWorkspace() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [permissionSearch, setPermissionSearch] = useState("");
   const [createForm, setCreateForm] = useState<RoleForm>(initialForm);
@@ -94,10 +95,7 @@ export function RolesWorkspace() {
     });
   }, [permissionSearch, permissions]);
 
-  const selectedRole = useMemo(
-    () => roles.find((role) => role.id === selectedId) ?? filteredRoles[0] ?? roles[0] ?? null,
-    [filteredRoles, roles, selectedId],
-  );
+  const selectedRole = useMemo(() => roles.find((role) => role.id === selectedId) ?? null, [roles, selectedId]);
 
   const stats = useMemo(
     () => ({
@@ -120,7 +118,6 @@ export function RolesWorkspace() {
       ]);
       setRoles(rolesPayload);
       setPermissions(permissionsPayload);
-      setSelectedId((current) => current ?? rolesPayload[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load roles.");
     } finally {
@@ -195,6 +192,7 @@ export function RolesWorkspace() {
       setNotice(`Role #${roleId} deleted successfully.`);
       if (selectedId === roleId) {
         setSelectedId(null);
+        setDetailsOpen(false);
       }
       await load();
     } catch (err) {
@@ -237,6 +235,11 @@ export function RolesWorkspace() {
     );
   }
 
+  function openRoleDetails(id: number) {
+    setSelectedId(id);
+    setDetailsOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -255,7 +258,7 @@ export function RolesWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Role Catalog" description="Select a role to inspect its permission footprint.">
+        <Panel title="Role Catalog" description="Search the role catalog, then open a focused popup to inspect or edit the permission bundle.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="role-search" value={search} onChange={setSearch} placeholder="Role, friendly permission, or id" />
           </div>
@@ -270,14 +273,14 @@ export function RolesWorkspace() {
                   <button
                     key={role.id}
                     type="button"
-                    onClick={() => setSelectedId(role.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    onClick={() => openRoleDetails(role.id)}
+                    className={`w-full rounded-lg border p-4 text-left transition ${active ? "border-slate-300 bg-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
                   >
-                    <div className="text-sm font-semibold">{role.name}</div>
-                    <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{(role.permissions || []).length} permissions</div>
+                    <div className="break-words text-sm font-semibold text-slate-950">{role.name}</div>
+                    <div className="mt-1 text-xs text-slate-500">{(role.permissions || []).length} permissions</div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(role.permissions || []).slice(0, 8).map((permission) => (
-                        <span key={permission.id} className={`rounded-full px-2.5 py-1 text-xs ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                        <span key={permission.id} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
                           {formatPermissionLabel(permission.name)}
                         </span>
                       ))}
@@ -299,35 +302,54 @@ export function RolesWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected Role" description="Rename the role and tune the permission matrix.">
-            {selectedRole ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedRole.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{(selectedRole.permissions || []).length} permissions assigned</div>
-                  <div className="mt-2 text-xs text-slate-500">Updated {formatLocalDateTime(selectedRole.updated_at)}</div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateRole}>
-                  <WorkflowInput label="Role Name" name="edit-role-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                  {renderPermissionPicker(editForm, setEditForm)}
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteRole(selectedRole.id)} disabled={deletingId === selectedRole.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedRole.id ? "Deleting..." : "Delete Role"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a role to review or change its permissions.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedRole ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="break-words text-lg font-semibold text-slate-950">{selectedRole.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{(selectedRole.permissions || []).length} permissions assigned</div>
+                <div className="mt-2 text-xs text-slate-500">Updated {formatLocalDateTime(selectedRole.updated_at)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Role" value={selectedRole.name} hint="Role bundle name." />
+                <StatCard label="Permissions" value={(selectedRole.permissions || []).length} hint="Assigned permissions." />
+                <StatCard label="Updated" value={selectedRole.updated_at ? formatLocalDateTime(selectedRole.updated_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Last update date." />
+              </div>
+
+              <div className="mt-5">
+                <Panel title="Role Details" description="Rename the role and tune the permission matrix without leaving the catalog view.">
+                  <form className="space-y-4" onSubmit={updateRole}>
+                    <WorkflowInput label="Role Name" name="edit-role-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                    {renderPermissionPicker(editForm, setEditForm)}
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteRole(selectedRole.id)} disabled={deletingId === selectedRole.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {deletingId === selectedRole.id ? "Deleting..." : "Delete Role"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -18,7 +18,6 @@ type UserForm = {
   location: string;
   specialization: string;
   salary: string;
-  commission: string;
   hired_at: string;
   whatsapp_agent_number: string;
   work_start: string;
@@ -36,7 +35,6 @@ const initialForm: UserForm = {
   location: "",
   specialization: "",
   salary: "",
-  commission: "",
   hired_at: "",
   whatsapp_agent_number: "",
   work_start: "",
@@ -61,7 +59,6 @@ function toForm(user?: User | null): UserForm {
     location: user.location || "",
     specialization: user.specialization || "",
     salary: user.salary != null ? String(user.salary) : "",
-    commission: user.commission != null ? String(user.commission) : "",
     hired_at: user.hired_at ? user.hired_at.slice(0, 10) : "",
     whatsapp_agent_number: user.whatsapp_agent_number || "",
     work_start: user.work_start || "",
@@ -84,7 +81,6 @@ function buildUserPayload(form: UserForm, includePassword: boolean) {
     location: form.location || null,
     specialization: form.specialization || null,
     salary: form.salary ? Number(form.salary) : null,
-    commission: form.commission ? Number(form.commission) : null,
     hired_at: form.hired_at || null,
     whatsapp_agent_number: form.whatsapp_agent_number || null,
     work_start: form.work_start || null,
@@ -100,10 +96,23 @@ function buildUserPayload(form: UserForm, includePassword: boolean) {
   return payload;
 }
 
+function normalizeRoles(ids: number[]) {
+  return [...ids].sort((a, b) => a - b);
+}
+
+function arraysEqual(left: number[], right: number[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
 export function UsersWorkspace() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<UserForm>(initialForm);
   const [editForm, setEditForm] = useState<UserForm>(initialForm);
@@ -129,10 +138,7 @@ export function UsersWorkspace() {
     });
   }, [search, users]);
 
-  const selectedUser = useMemo(
-    () => users.find((user) => user.id === selectedId) ?? filteredUsers[0] ?? users[0] ?? null,
-    [filteredUsers, selectedId, users],
-  );
+  const selectedUser = useMemo(() => users.find((user) => user.id === selectedId) ?? null, [selectedId, users]);
 
   const selectedUserIsProtectedAdmin = selectedUser?.email === PROTECTED_ADMIN_EMAIL;
 
@@ -157,7 +163,6 @@ export function UsersWorkspace() {
       ]);
       setUsers(usersPayload);
       setRoles(rolesPayload);
-      setSelectedId((current) => current ?? usersPayload[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load users.");
     } finally {
@@ -204,12 +209,50 @@ export function UsersWorkspace() {
     setNotice(null);
 
     try {
-      await mutateJson<User>(`/users/${selectedUser.id}`, "PATCH", buildUserPayload(editForm, Boolean(editForm.password)));
-      await mutateJson<User>(`/users/${selectedUser.id}/roles`, "PATCH", {
-        roles: editForm.roles,
-      });
+      const originalForm = toForm(selectedUser);
+      const profileChanged =
+        editForm.name !== originalForm.name ||
+        editForm.email !== originalForm.email ||
+        editForm.password !== "" ||
+        editForm.title !== originalForm.title ||
+        editForm.phone_number !== originalForm.phone_number ||
+        editForm.location !== originalForm.location ||
+        editForm.specialization !== originalForm.specialization ||
+        editForm.salary !== originalForm.salary ||
+        editForm.hired_at !== originalForm.hired_at ||
+        editForm.whatsapp_agent_number !== originalForm.whatsapp_agent_number ||
+        editForm.work_start !== originalForm.work_start ||
+        editForm.work_end !== originalForm.work_end ||
+        editForm.is_active !== originalForm.is_active;
+
+      const rolesChanged = !arraysEqual(normalizeRoles(editForm.roles), normalizeRoles(originalForm.roles));
+
+      let mergedUser: User = selectedUser;
+
+      if (profileChanged) {
+        const updatedUser = await mutateJson<User>(`/users/${selectedUser.id}`, "PATCH", buildUserPayload(editForm, Boolean(editForm.password)));
+        mergedUser = {
+          ...mergedUser,
+          ...updatedUser,
+          roles: updatedUser.roles ?? mergedUser.roles ?? [],
+        };
+      }
+
+      if (rolesChanged) {
+        const roleSyncedUser = await mutateJson<User>(`/users/${selectedUser.id}/roles`, "PATCH", {
+          roles: editForm.roles,
+        });
+
+        mergedUser = {
+          ...mergedUser,
+          ...roleSyncedUser,
+          roles: roleSyncedUser.roles ?? mergedUser.roles ?? [],
+        };
+      }
+
+      setUsers((current) => current.map((user) => (user.id === selectedUser.id ? { ...user, ...mergedUser } : user)));
       setNotice(`User "${editForm.name}" updated successfully.`);
-      await load();
+      setEditForm(toForm(mergedUser));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update user.");
     } finally {
@@ -227,6 +270,7 @@ export function UsersWorkspace() {
       setNotice(`User #${userId} deleted successfully.`);
       if (selectedId === userId) {
         setSelectedId(null);
+        setDetailsOpen(false);
       }
       await load();
     } catch (err) {
@@ -263,6 +307,11 @@ export function UsersWorkspace() {
     );
   }
 
+  function openUserDetails(id: number) {
+    setSelectedId(id);
+    setDetailsOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -281,7 +330,7 @@ export function UsersWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="User Directory" description="Search and select the user you want to review or edit.">
+        <Panel title="User Directory" description="Search the team roster, then open a focused popup to review or edit the account.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="user-search" value={search} onChange={setSearch} placeholder="Name, email, title, role, or id" />
           </div>
@@ -296,26 +345,26 @@ export function UsersWorkspace() {
                   <button
                     key={user.id}
                     type="button"
-                    onClick={() => setSelectedId(user.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    onClick={() => openUserDetails(user.id)}
+                    className={`w-full rounded-lg border p-4 text-left transition ${active ? "border-slate-300 bg-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">{user.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{user.email}</div>
+                        <div className="text-sm font-semibold text-slate-950">{user.name}</div>
+                        <div className="mt-1 text-sm text-slate-600">{user.email}</div>
                       </div>
-                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${user.is_active ?? true ? active ? "bg-emerald-400/20 text-emerald-100" : "bg-emerald-50 text-emerald-700" : active ? "bg-rose-400/20 text-rose-100" : "bg-rose-50 text-rose-700"}`}>
+                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${(user.is_active ?? true) ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
                         {(user.is_active ?? true) ? "Active" : "Inactive"}
                       </div>
                     </div>
-                    <div className={`mt-3 flex flex-wrap gap-2 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                       {(user.roles || []).map((role) => (
-                        <span key={role.id} className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                        <span key={role.id} className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
                           {role.name}
                         </span>
                       ))}
                       {user.email === PROTECTED_ADMIN_EMAIL ? (
-                        <span className={`rounded-full px-2.5 py-1 ${active ? "bg-amber-400/20 text-amber-100" : "bg-amber-50 text-amber-700"}`}>
+                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                           Protected admin
                         </span>
                       ) : null}
@@ -347,58 +396,77 @@ export function UsersWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected User" description="Update operational details and role assignment for the selected account.">
-            {selectedUser ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedUser.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedUser.email}</div>
-                  <div className="mt-2 text-xs text-slate-500">Joined {formatLocalDateTime(selectedUser.hired_at)}</div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateUser}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <WorkflowInput label="Name" name="edit-user-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowInput label="Email" name="edit-user-email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} type="email" required />
-                    <WorkflowInput label="Password" name="edit-user-password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} type="password" placeholder="Leave blank to keep current password" />
-                    <WorkflowInput label="Title" name="edit-user-title" value={editForm.title} onChange={(value) => setEditForm((current) => ({ ...current, title: value }))} />
-                    <WorkflowInput label="Phone" name="edit-user-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} />
-                    <WorkflowInput label="Location" name="edit-user-location" value={editForm.location} onChange={(value) => setEditForm((current) => ({ ...current, location: value }))} />
-                    <WorkflowInput label="Specialization" name="edit-user-specialization" value={editForm.specialization} onChange={(value) => setEditForm((current) => ({ ...current, specialization: value }))} />
-                    <WorkflowInput label="Hired At" name="edit-user-hired-at" value={editForm.hired_at} onChange={(value) => setEditForm((current) => ({ ...current, hired_at: value }))} type="date" />
-                    <WorkflowInput label="Salary" name="edit-user-salary" value={editForm.salary} onChange={(value) => setEditForm((current) => ({ ...current, salary: value }))} type="number" />
-                    <WorkflowInput label="Commission" name="edit-user-commission" value={editForm.commission} onChange={(value) => setEditForm((current) => ({ ...current, commission: value }))} type="number" />
-                    <WorkflowInput label="Work Start" name="edit-user-work-start" value={editForm.work_start} onChange={(value) => setEditForm((current) => ({ ...current, work_start: value }))} type="time" />
-                    <WorkflowInput label="Work End" name="edit-user-work-end" value={editForm.work_end} onChange={(value) => setEditForm((current) => ({ ...current, work_end: value }))} type="time" />
-                  </div>
-                  <WorkflowInput label="WhatsApp Number" name="edit-user-whatsapp" value={editForm.whatsapp_agent_number} onChange={(value) => setEditForm((current) => ({ ...current, whatsapp_agent_number: value }))} placeholder="Optional routing number for WhatsApp agent workflows" />
-                  {renderRolePicker(editForm, setEditForm)}
-                  <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={editForm.is_active}
-                      onChange={(event) => setEditForm((current) => ({ ...current, is_active: event.target.checked }))}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                    Active account
-                  </label>
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteUser(selectedUser.id)} disabled={selectedUserIsProtectedAdmin || deletingId === selectedUser.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {selectedUserIsProtectedAdmin ? "Protected Admin" : deletingId === selectedUser.id ? "Deleting..." : "Delete User"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a user to review or edit their setup details.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedUser ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedUser.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedUser.email}</div>
+                <div className="mt-2 text-xs text-slate-500">Joined {formatLocalDateTime(selectedUser.hired_at)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Status" value={(selectedUser.is_active ?? true) ? "Active" : "Inactive"} hint="Current account status." />
+                <StatCard label="Roles" value={(selectedUser.roles || []).length} hint="Assigned roles." />
+                <StatCard label="Specialization" value={selectedUser.specialization || "-"} hint="Configured specialization." />
+                <StatCard label="Phone" value={selectedUser.phone_number || "-"} hint="Primary phone number." />
+              </div>
+
+              <div className="mt-5">
+                <Panel title="User Details" description="Update operational details and role assignment for this account without leaving the directory.">
+                  <form className="space-y-4" onSubmit={updateUser}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <WorkflowInput label="Name" name="edit-user-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                      <WorkflowInput label="Email" name="edit-user-email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} type="email" required />
+                      <WorkflowInput label="Password" name="edit-user-password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} type="password" placeholder="Leave blank to keep current password" />
+                      <WorkflowInput label="Title" name="edit-user-title" value={editForm.title} onChange={(value) => setEditForm((current) => ({ ...current, title: value }))} />
+                      <WorkflowInput label="Phone" name="edit-user-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} />
+                      <WorkflowInput label="Location" name="edit-user-location" value={editForm.location} onChange={(value) => setEditForm((current) => ({ ...current, location: value }))} />
+                      <WorkflowInput label="Specialization" name="edit-user-specialization" value={editForm.specialization} onChange={(value) => setEditForm((current) => ({ ...current, specialization: value }))} />
+                      <WorkflowInput label="Hired At" name="edit-user-hired-at" value={editForm.hired_at} onChange={(value) => setEditForm((current) => ({ ...current, hired_at: value }))} type="date" />
+                      <WorkflowInput label="Salary" name="edit-user-salary" value={editForm.salary} onChange={(value) => setEditForm((current) => ({ ...current, salary: value }))} type="number" />
+                      <WorkflowInput label="Work Start" name="edit-user-work-start" value={editForm.work_start} onChange={(value) => setEditForm((current) => ({ ...current, work_start: value }))} type="time" />
+                      <WorkflowInput label="Work End" name="edit-user-work-end" value={editForm.work_end} onChange={(value) => setEditForm((current) => ({ ...current, work_end: value }))} type="time" />
+                    </div>
+                    <WorkflowInput label="WhatsApp Number" name="edit-user-whatsapp" value={editForm.whatsapp_agent_number} onChange={(value) => setEditForm((current) => ({ ...current, whatsapp_agent_number: value }))} placeholder="Optional routing number for WhatsApp agent workflows" />
+                    {renderRolePicker(editForm, setEditForm)}
+                    <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={editForm.is_active}
+                        onChange={(event) => setEditForm((current) => ({ ...current, is_active: event.target.checked }))}
+                        className="h-4 w-4 rounded border-slate-300"
+                      />
+                      Active account
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteUser(selectedUser.id)} disabled={selectedUserIsProtectedAdmin || deletingId === selectedUser.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {selectedUserIsProtectedAdmin ? "Protected Admin" : deletingId === selectedUser.id ? "Deleting..." : "Delete User"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
