@@ -326,7 +326,7 @@ export function WarehousesWorkspace() {
           <Panel title="Create Warehouse" description="Only medication-enabled clinics without a warehouse are available here.">
             <form className="space-y-4" onSubmit={createWarehouse}>
               <WorkflowInput label="Warehouse Name" name="create-warehouse-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-              <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={eligibleCreateClinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required emptyLabel="Select clinic" />
+              <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={eligibleCreateClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Warehouse"}
               </button>
@@ -365,7 +365,7 @@ export function WarehousesWorkspace() {
                 <Panel title="Warehouse Details" description="Rename the warehouse or move it between eligible clinics.">
                   <form className="space-y-4" onSubmit={updateWarehouse}>
                     <WorkflowInput label="Warehouse Name" name="edit-warehouse-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))} required emptyLabel="Select clinic" />
+                    <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
                     <div className="flex flex-wrap gap-3">
                       <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}

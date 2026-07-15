@@ -28,8 +28,8 @@ export const navGroups: NavGroup[] = [
   {
     label: "Clinical",
     items: [
-      { label: "Treatment Plans", href: "/treatment-plans", description: "Planned care and visit bundles" },
-      { label: "Visits", href: "/visits", description: "Scheduling and visit lifecycle" },
+      { label: "Treatment Plans", href: "/treatment-plans", description: "Primary care-plan workspace and visit bundles" },
+      { label: "Visits", href: "/visits", description: "Operational queue for scheduling, confirmations, and exceptions" },
       {
         label: "Medical Records",
         href: "/medical-records",

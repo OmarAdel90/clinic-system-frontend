@@ -88,7 +88,7 @@ export function PatientFeedbackWorkspace() {
 
     return clinics
       .filter((clinic) => clinic.id === clinicId)
-      .map((clinic) => ({ label: clinic.name, value: clinic.id }));
+      .map((clinic) => ({ label: clinic.name, value: String(clinic.id) }));
   }, [clinics, selectedCreateLead?.clinic_id]);
 
   const editClinicOptions = useMemo(() => {
@@ -99,7 +99,7 @@ export function PatientFeedbackWorkspace() {
 
     return clinics
       .filter((clinic) => clinic.id === clinicId)
-      .map((clinic) => ({ label: clinic.name, value: clinic.id }));
+      .map((clinic) => ({ label: clinic.name, value: String(clinic.id) }));
   }, [clinics, selectedEditLead?.clinic_id]);
 
   const stats = useMemo(() => ({
@@ -271,7 +271,7 @@ export function PatientFeedbackWorkspace() {
         <div className="space-y-6">
           <Panel title="Create Feedback" description="Capture a new patient feedback note tied to a lead and clinic.">
             <form className="space-y-4" onSubmit={createFeedback}>
-              <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: lead.id }))} required />
+              <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: String(lead.id) }))} required />
               <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={createClinicOptions} required allowEmpty={false} />
               {createForm.lead_id && !selectedCreateLead?.clinic_id ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

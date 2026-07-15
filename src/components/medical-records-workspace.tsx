@@ -317,7 +317,7 @@ export function MedicalRecordsWorkspace() {
               label="Lead"
               value={selectedLeadId}
               onChange={(value) => void changeLead(value)}
-              options={leads.map((lead) => ({ label: describeLead(lead), value: lead.id }))}
+              options={leads.map((lead) => ({ label: describeLead(lead), value: String(lead.id) }))}
               required
               emptyLabel="Select lead"
             />
@@ -360,7 +360,7 @@ export function MedicalRecordsWorkspace() {
         <div className="space-y-6">
           <Panel title="Upload Record" description="Attach a new file to the selected lead. Supported files include PDF, images, and Office documents.">
             <form className="space-y-4" onSubmit={createRecord}>
-              <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: describeLead(lead), value: lead.id }))} required emptyLabel="Select lead" />
+              <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: describeLead(lead), value: String(lead.id) }))} required emptyLabel="Select lead" />
               <WorkflowSelect label="Type" value={createForm.type} onChange={(value) => setCreateForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
               <WorkflowTextarea label="Notes" value={createForm.notes} onChange={(value) => setCreateForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
               <label className="block space-y-2">

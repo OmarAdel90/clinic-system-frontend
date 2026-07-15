@@ -152,7 +152,7 @@ export function LeadsWorkspace() {
               label="Campaign"
               value={form.campaign_id}
               onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))}
-              options={campaigns.map((campaign) => ({ label: campaign.name, value: campaign.id }))}
+              options={campaigns.map((campaign) => ({ label: campaign.name, value: String(campaign.id) }))}
               required
             />
             <WorkflowSelect
@@ -200,7 +200,7 @@ export function LeadsWorkspace() {
                 label="Lead Status"
                 value={form.lead_status_id}
                 onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))}
-                options={statuses.map((status) => ({ label: status.label, value: status.id }))}
+                options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))}
               />
             ) : null}
             <button

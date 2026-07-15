@@ -50,6 +50,7 @@ export function LeadsWorkspaceV2() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [assignments, setAssignments] = useState<Record<number, { clinicId: string; userId: string; leadStatusId: string }>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -155,6 +156,12 @@ export function LeadsWorkspaceV2() {
     });
   }, [leadFromQuery]);
 
+  useEffect(() => {
+    if (leadFromQuery && selectedLeadId) {
+      setDetailsOpen(true);
+    }
+  }, [leadFromQuery, selectedLeadId]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -248,6 +255,11 @@ export function LeadsWorkspaceV2() {
     }
   }
 
+  function openLeadDetails(leadId: number) {
+    setSelectedLeadId(leadId);
+    setDetailsOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -275,7 +287,7 @@ export function LeadsWorkspaceV2() {
         <StatCard label="Leads With Records" value={stats.medicalRecordLeadCount} hint="Leads that already have at least one medical record on file." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, lifecycle status, and record visibility.">
           <div className="mb-4 grid gap-3 md:grid-cols-3">
             <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
@@ -314,7 +326,7 @@ export function LeadsWorkspaceV2() {
                   <button
                     key={lead.id}
                     type="button"
-                    onClick={() => setSelectedLeadId(lead.id)}
+                    onClick={() => openLeadDetails(lead.id)}
                     className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
                   >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -348,152 +360,175 @@ export function LeadsWorkspaceV2() {
           )}
         </Panel>
 
-        <div className="space-y-6">
-          <Panel title="Lead Detail" description="Assignment snapshot, timeline, and quick routing actions for the selected lead.">
-            {selectedLead ? (
-              <div className="space-y-5">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
-                      <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} | {selectedLead.platform || "Unknown channel"}</div>
-                    </div>
-                    <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
-                  </div>
-
-                  <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-                    <div>Created: {formatLocalDateTime(selectedLead.created_at)}</div>
-                    <div>Clinic handoff: {formatLocalDateTime(selectedLead.clinic_assigned_at)}</div>
-                    <div>Assigned clinic: {selectedLead.clinic?.name || "Not linked yet"}</div>
-                    <div>Linked conversations: {selectedLead.conversations?.length ?? 0}</div>
-                    <div>Medical records: {selectedLead.medical_records_count ?? 0}</div>
-                  </div>
-
-                  <div className="mt-4">
-                    <Link
-                      href={`/medical-records?lead=${selectedLead.id}`}
-                      className="inline-flex rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Open Medical Records
-                    </Link>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <WorkflowSelect
-                    label="Assign To User"
-                    value={assignments[selectedLead.id]?.userId ?? ""}
-                    onChange={(value) =>
-                      setAssignments((current) => ({
-                        ...current,
-                        [selectedLead.id]: {
-                          clinicId: current[selectedLead.id]?.clinicId ?? "",
-                          userId: value,
-                          leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
-                        },
-                      }))
-                    }
-                    options={users.map((user) => ({ label: user.name, value: user.id }))}
-                  />
-                  <WorkflowSelect
-                    label="Assign To Clinic"
-                    value={assignments[selectedLead.id]?.clinicId ?? ""}
-                    onChange={(value) =>
-                      setAssignments((current) => ({
-                        ...current,
-                        [selectedLead.id]: {
-                          clinicId: value,
-                          userId: current[selectedLead.id]?.userId ?? "",
-                          leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
-                        },
-                      }))
-                    }
-                    options={clinics.map((clinic) => ({ label: clinic.name, value: clinic.id }))}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-                  <WorkflowSelect
-                    label="Update Lead Status"
-                    value={assignments[selectedLead.id]?.leadStatusId ?? String(selectedLead.lead_status_id ?? "")}
-                    onChange={(value) =>
-                      setAssignments((current) => ({
-                        ...current,
-                        [selectedLead.id]: {
-                          clinicId: current[selectedLead.id]?.clinicId ?? "",
-                          userId: current[selectedLead.id]?.userId ?? "",
-                          leadStatusId: value,
-                        },
-                      }))
-                    }
-                    options={statuses.map((status) => ({ label: status.label, value: status.id }))}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void updateLeadStatus(selectedLead.id)}
-                    disabled={updatingLeadId === selectedLead.id || statuses.length === 0}
-                    className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {updatingLeadId === selectedLead.id ? "Updating..." : "Save Status"}
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={() => void assignAgent(selectedLead.id)} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">
-                    Assign User
-                  </button>
-                  <button type="button" onClick={() => void assignNext(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
-                    Assign Next In Queue
-                  </button>
-                  <button type="button" onClick={() => void assignClinic(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
-                    Assign Clinic
-                  </button>
-                </div>
-
-                <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-                  <div className="text-sm font-semibold text-slate-950">Conversation Snapshot</div>
-                  <div className="mt-3 space-y-3">
-                    {(selectedLead.conversations ?? []).map((conversation: Conversation) => (
-                      <div key={conversation.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm font-medium text-slate-900">Conversation #{conversation.id}</div>
-                          <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
-                        </div>
-                        <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                          <div>First touch: {formatLocalDateTime(conversation.first_message_time)}</div>
-                          <div>Last touch: {formatLocalDateTime(conversation.last_message_time)}</div>
-                          <div>Converted: {formatLocalDateTime(conversation.converted_at)}</div>
-                          <div>{formatRelativeDateLabel(conversation.last_message_time)}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {(selectedLead.conversations?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No conversations linked to this lead yet.</div> : null}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a lead to manage assignments.</div>
-            )}
-          </Panel>
-
-          <Panel title="Create Lead" description="Fast intake form matching the backend lead creation contract.">
+        <Panel title="Create Lead" description="Fast intake form matching the backend lead creation contract.">
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <WorkflowSelect label="Campaign" value={form.campaign_id} onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))} options={campaigns.map((campaign) => ({ label: campaign.name, value: campaign.id }))} required />
+              <WorkflowSelect label="Campaign" value={form.campaign_id} onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))} options={campaigns.map((campaign) => ({ label: campaign.name, value: String(campaign.id) }))} required />
               <WorkflowSelect label="Platform" value={form.platform} onChange={(value) => setForm((current) => ({ ...current, platform: value }))} options={[{ label: "WhatsApp", value: "whatsapp" }, { label: "Facebook", value: "facebook" }, { label: "Instagram", value: "instagram" }]} required />
               <WorkflowInput label="Phone" name="phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="2010..." required />
               <WorkflowInput label="Name" name="name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder="Patient name" />
               <WorkflowInput label="Profile Name" name="profile_name" value={form.profile_name} onChange={(value) => setForm((current) => ({ ...current, profile_name: value }))} placeholder="Social profile name" />
               <WorkflowInput label="WhatsApp ID" name="whatsapp_id" value={form.whatsapp_id} onChange={(value) => setForm((current) => ({ ...current, whatsapp_id: value }))} placeholder="Optional platform identifier" />
               {statuses.length > 0 ? (
-                <WorkflowSelect label="Lead Status" value={form.lead_status_id} onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))} options={statuses.map((status) => ({ label: status.label, value: status.id }))} emptyLabel="No status" />
+                <WorkflowSelect label="Lead Status" value={form.lead_status_id} onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))} options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))} emptyLabel="No status" />
               ) : null}
               <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {saving ? "Creating..." : "Create Lead"}
               </button>
             </form>
-          </Panel>
-        </div>
+        </Panel>
       </div>
+
+      {detailsOpen && selectedLead ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-lg font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                  <span>{selectedLead.phone || "No phone"}</span>
+                  <span>{selectedLead.platform || "Unknown channel"}</span>
+                  {selectedLead.clinic?.name ? <span>{selectedLead.clinic.name}</span> : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(92vh-82px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+                <div className="space-y-5">
+                  <Panel title="Lead Summary" description="Pipeline context, clinic handoff, and quick access to records.">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
+                        <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} | {selectedLead.platform || "Unknown channel"}</div>
+                      </div>
+                      <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
+                    </div>
+
+                    <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                      <div>Created: {formatLocalDateTime(selectedLead.created_at)}</div>
+                      <div>Clinic handoff: {formatLocalDateTime(selectedLead.clinic_assigned_at)}</div>
+                      <div>Assigned clinic: {selectedLead.clinic?.name || "Not linked yet"}</div>
+                      <div>Linked conversations: {selectedLead.conversations?.length ?? 0}</div>
+                      <div>Medical records: {selectedLead.medical_records_count ?? 0}</div>
+                    </div>
+
+                    <div className="mt-4">
+                      <Link
+                        href={`/medical-records?lead=${selectedLead.id}`}
+                        className="inline-flex rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                      >
+                        Open Medical Records
+                      </Link>
+                    </div>
+                  </Panel>
+
+                  <Panel title="Conversation Snapshot" description="Conversations currently linked to this lead.">
+                    <div className="space-y-3">
+                      {(selectedLead.conversations ?? []).map((conversation: Conversation) => (
+                        <div key={conversation.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-medium text-slate-900">Conversation #{conversation.id}</div>
+                            <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
+                          </div>
+                          <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                            <div>First touch: {formatLocalDateTime(conversation.first_message_time)}</div>
+                            <div>Last touch: {formatLocalDateTime(conversation.last_message_time)}</div>
+                            <div>Converted: {formatLocalDateTime(conversation.converted_at)}</div>
+                            <div>{formatRelativeDateLabel(conversation.last_message_time)}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {(selectedLead.conversations?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No conversations linked to this lead yet.</div> : null}
+                    </div>
+                  </Panel>
+                </div>
+
+                <div className="space-y-5">
+                  <Panel title="Routing Actions" description="Assign the lead and move it through the workflow without leaving the list.">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+                      <WorkflowSelect
+                        label="Assign To User"
+                        value={assignments[selectedLead.id]?.userId ?? ""}
+                        onChange={(value) =>
+                          setAssignments((current) => ({
+                            ...current,
+                            [selectedLead.id]: {
+                              clinicId: current[selectedLead.id]?.clinicId ?? "",
+                              userId: value,
+                              leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
+                            },
+                          }))
+                        }
+                        options={users.map((user) => ({ label: user.name, value: String(user.id) }))}
+                      />
+                      <WorkflowSelect
+                        label="Assign To Clinic"
+                        value={assignments[selectedLead.id]?.clinicId ?? ""}
+                        onChange={(value) =>
+                          setAssignments((current) => ({
+                            ...current,
+                            [selectedLead.id]: {
+                              clinicId: value,
+                              userId: current[selectedLead.id]?.userId ?? "",
+                              leadStatusId: current[selectedLead.id]?.leadStatusId ?? "",
+                            },
+                          }))
+                        }
+                        options={clinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))}
+                      />
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] xl:grid-cols-1 xl:items-end">
+                      <WorkflowSelect
+                        label="Update Lead Status"
+                        value={assignments[selectedLead.id]?.leadStatusId ?? String(selectedLead.lead_status_id ?? "")}
+                        onChange={(value) =>
+                          setAssignments((current) => ({
+                            ...current,
+                            [selectedLead.id]: {
+                              clinicId: current[selectedLead.id]?.clinicId ?? "",
+                              userId: current[selectedLead.id]?.userId ?? "",
+                              leadStatusId: value,
+                            },
+                          }))
+                        }
+                        options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void updateLeadStatus(selectedLead.id)}
+                        disabled={updatingLeadId === selectedLead.id || statuses.length === 0}
+                        className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {updatingLeadId === selectedLead.id ? "Updating..." : "Save Status"}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button type="button" onClick={() => void assignAgent(selectedLead.id)} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">
+                        Assign User
+                      </button>
+                      <button type="button" onClick={() => void assignNext(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
+                        Assign Next In Queue
+                      </button>
+                      <button type="button" onClick={() => void assignClinic(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
+                        Assign Clinic
+                      </button>
+                    </div>
+                  </Panel>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

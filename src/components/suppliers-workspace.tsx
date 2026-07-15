@@ -296,14 +296,14 @@ export function SuppliersWorkspace() {
   const warehouseOptions = useMemo(
     () =>
       warehouses.map((warehouse) => ({
-        label: warehouse.clinic?.name ? `${warehouse.name} | ${warehouse.clinic.name}` : warehouse.name,
-        value: warehouse.id,
+        label: warehouse.clinic?.name ? `${warehouse.name} (${warehouse.clinic.name})` : warehouse.name,
+        value: String(warehouse.id),
       })),
     [warehouses],
   );
 
   const pharmaOptions = useMemo(
-    () => pharmaceuticals.map((item) => ({ label: `${item.SKU} | ${item.name}`, value: item.SKU })),
+    () => pharmaceuticals.map((item) => ({ label: `${item.name} (${item.SKU})`, value: item.SKU })),
     [pharmaceuticals],
   );
 

@@ -10,6 +10,11 @@ import { WorkflowSelect } from "@/components/workflow-select";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
 
+type ServiceRow = {
+  name: string;
+  cost: string;
+};
+
 type ClinicForm = {
   name: string;
   arabic_name: string;
@@ -17,7 +22,7 @@ type ClinicForm = {
   address: string;
   provides_medication: boolean;
   departments: string;
-  services: string;
+  services: ServiceRow[];
   doctors: number[];
   warehouse_id: string;
 };
@@ -29,7 +34,7 @@ const initialForm: ClinicForm = {
   address: "",
   provides_medication: true,
   departments: "",
-  services: "",
+  services: [{ name: "", cost: "0" }],
   doctors: [],
   warehouse_id: "",
 };
@@ -45,6 +50,34 @@ function toText(values?: string[] | null) {
   return (values || []).join("\n");
 }
 
+function normalizeServices(values?: unknown[] | null): ServiceRow[] {
+  const normalized = (values || [])
+    .map((service) => {
+      if (typeof service === "string") {
+        const name = service.trim();
+        return name ? { name, cost: "0" } : null;
+      }
+
+      if (service && typeof service === "object") {
+        const record = service as { name?: string; label?: string; title?: string; cost?: number | string };
+        const name = (record.name || record.label || record.title || "").trim();
+        if (!name) {
+          return null;
+        }
+
+        return {
+          name,
+          cost: String(record.cost ?? 0),
+        };
+      }
+
+      return null;
+    })
+    .filter((service): service is ServiceRow => Boolean(service));
+
+  return normalized.length > 0 ? normalized : [{ name: "", cost: "0" }];
+}
+
 function toForm(clinic?: Clinic | null): ClinicForm {
   if (!clinic) {
     return initialForm;
@@ -57,7 +90,7 @@ function toForm(clinic?: Clinic | null): ClinicForm {
     address: clinic.address || "",
     provides_medication: clinic.provides_medication ?? true,
     departments: toText(clinic.departments),
-    services: toText(clinic.services),
+    services: normalizeServices(clinic.services as unknown[] | null | undefined),
     doctors: clinic.doctors || [],
     warehouse_id: clinic.warehouse?.id ? String(clinic.warehouse.id) : "",
   };
@@ -68,14 +101,19 @@ function toggleId(list: number[], id: number) {
 }
 
 function buildClinicPayload(form: ClinicForm, includeWarehouse: boolean) {
-  const payload: Record<string, string | boolean | number[] | string[] | number | null> = {
+  const payload: Record<string, string | boolean | number[] | string[] | { name: string; cost: number }[] | number | null> = {
     name: form.name,
     arabic_name: form.arabic_name,
     phone_number: form.phone_number,
     address: form.address,
     provides_medication: form.provides_medication,
     departments: toList(form.departments),
-    services: toList(form.services),
+    services: form.services
+      .map((service) => ({
+        name: service.name.trim(),
+        cost: Number(service.cost || 0),
+      }))
+      .filter((service) => service.name),
     doctors: form.doctors,
   };
 
@@ -116,7 +154,7 @@ export function ClinicsWorkspace() {
         clinic.phone_number,
         clinic.address,
         ...(clinic.departments || []),
-        ...(clinic.services || []),
+        ...normalizeServices(clinic.services as unknown[] | null | undefined).map((service) => service.name),
         String(clinic.id),
       ]
         .filter(Boolean)
@@ -278,6 +316,71 @@ export function ClinicsWorkspace() {
     );
   }
 
+  function renderServiceEditor(form: ClinicForm, setForm: Dispatch<SetStateAction<ClinicForm>>) {
+    function updateService(index: number, patch: Partial<ServiceRow>) {
+      setForm((current) => ({
+        ...current,
+        services: current.services.map((service, serviceIndex) =>
+          serviceIndex === index ? { ...service, ...patch } : service,
+        ),
+      }));
+    }
+
+    function addService() {
+      setForm((current) => ({
+        ...current,
+        services: [...current.services, { name: "", cost: "0" }],
+      }));
+    }
+
+    function removeService(index: number) {
+      setForm((current) => ({
+        ...current,
+        services: current.services.filter((_, serviceIndex) => serviceIndex !== index).length > 0
+          ? current.services.filter((_, serviceIndex) => serviceIndex !== index)
+          : [{ name: "", cost: "0" }],
+      }));
+    }
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-medium text-slate-700">Services</div>
+          <button type="button" onClick={addService} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+            Add Service
+          </button>
+        </div>
+        <div className="space-y-3">
+          {form.services.map((service, index) => (
+            <div key={`service-${index}`} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+                <WorkflowInput
+                  label="Service Name"
+                  name={`service-name-${index}`}
+                  value={service.name}
+                  onChange={(value) => updateService(index, { name: value })}
+                  placeholder="Examination, cleaning, consultation..."
+                />
+                <WorkflowInput
+                  label="Cost"
+                  name={`service-cost-${index}`}
+                  type="number"
+                  value={service.cost}
+                  onChange={(value) => updateService(index, { cost: value })}
+                />
+                <div className="flex items-end">
+                  <button type="button" onClick={() => removeService(index)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 md:w-auto">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function openClinicDetails(id: number) {
     setSelectedId(id);
     setDetailsOpen(true);
@@ -334,9 +437,9 @@ export function ClinicsWorkspace() {
                           Warehouse: {clinic.warehouse?.name || "Not linked"}
                         </span>
                       ) : null}
-                      {(clinic.services || []).slice(0, 4).map((service) => (
-                        <span key={service} className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
-                          {service}
+                      {normalizeServices(clinic.services as unknown[] | null | undefined).slice(0, 4).map((service) => (
+                        <span key={`${clinic.id}-${service.name}`} className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
+                          {service.name} {Number(service.cost) > 0 ? `(${service.cost})` : ""}
                         </span>
                       ))}
                     </div>
@@ -358,7 +461,7 @@ export function ClinicsWorkspace() {
               </div>
               <WorkflowTextarea label="Address" value={createForm.address} onChange={(value) => setCreateForm((current) => ({ ...current, address: value }))} placeholder="Street, district, and any branch notes" />
               <WorkflowTextarea label="Departments" value={createForm.departments} onChange={(value) => setCreateForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
-              <WorkflowTextarea label="Services" value={createForm.services} onChange={(value) => setCreateForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
+              {renderServiceEditor(createForm, setCreateForm)}
               {renderDoctorPicker(createForm, setCreateForm)}
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Clinic"}
@@ -404,7 +507,7 @@ export function ClinicsWorkspace() {
                       <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
                       <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
                       <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
-                      <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} emptyLabel="No warehouse" />
+                      <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: String(warehouse.id) }))} emptyLabel="No warehouse" />
                     </div>
                     {!editForm.provides_medication ? (
                       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -413,7 +516,7 @@ export function ClinicsWorkspace() {
                     ) : null}
                     <WorkflowTextarea label="Address" value={editForm.address} onChange={(value) => setEditForm((current) => ({ ...current, address: value }))} />
                     <WorkflowTextarea label="Departments" value={editForm.departments} onChange={(value) => setEditForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
-                    <WorkflowTextarea label="Services" value={editForm.services} onChange={(value) => setEditForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
+                    {renderServiceEditor(editForm, setEditForm)}
                     {renderDoctorPicker(editForm, setEditForm)}
                     <div className="flex flex-wrap gap-3">
                       <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">

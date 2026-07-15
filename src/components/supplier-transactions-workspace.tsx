@@ -154,13 +154,13 @@ export function SupplierTransactionsWorkspace() {
   const warehouseOptions = useMemo(
     () =>
       warehouses.map((warehouse) => ({
-        label: `${warehouse.name}${warehouse.clinic?.name ? ` | ${warehouse.clinic.name}` : ""}`,
-        value: warehouse.id,
+        label: `${warehouse.name}${warehouse.clinic?.name ? ` (${warehouse.clinic.name})` : ""}`,
+        value: String(warehouse.id),
       })),
     [warehouses],
   );
 
-  const supplierOptions = useMemo(() => suppliers.map((supplier) => ({ label: supplier.name, value: supplier.id })), [suppliers]);
+  const supplierOptions = useMemo(() => suppliers.map((supplier) => ({ label: supplier.name, value: String(supplier.id) })), [suppliers]);
 
   const pharmaLookup = useMemo(() => new Map(pharmaceuticals.map((item) => [item.SKU, item])), [pharmaceuticals]);
 
@@ -435,7 +435,7 @@ export function SupplierTransactionsWorkspace() {
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku("create", index, value)} options={pharmaceuticals.map((pharmaceutical) => ({ label: `${pharmaceutical.SKU} | ${pharmaceutical.name}`, value: pharmaceutical.SKU }))} required emptyLabel="Select SKU" />
+                      <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku("create", index, value)} options={pharmaceuticals.map((pharmaceutical) => ({ label: `${pharmaceutical.name} (${pharmaceutical.SKU})`, value: pharmaceutical.SKU }))} required emptyLabel="Select SKU" />
                       <WorkflowInput label="Name" name={`create-item-name-${index}`} value={item.name} onChange={(value) => updateItem("create", index, { name: value })} required />
                       <WorkflowInput label="Arabic Name" name={`create-item-arabic-name-${index}`} value={item.arabic_name} onChange={(value) => updateItem("create", index, { arabic_name: value })} />
                       <WorkflowInput label="Quantity" name={`create-item-quantity-${index}`} type="number" value={item.quantity} onChange={(value) => updateItem("create", index, { quantity: value })} required />
@@ -489,7 +489,7 @@ export function SupplierTransactionsWorkspace() {
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2">
-                          <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku("edit", index, value)} options={pharmaceuticals.map((pharmaceutical) => ({ label: `${pharmaceutical.SKU} | ${pharmaceutical.name}`, value: pharmaceutical.SKU }))} required emptyLabel="Select SKU" />
+                          <WorkflowSelect label="SKU" value={item.sku} onChange={(value) => selectSku("edit", index, value)} options={pharmaceuticals.map((pharmaceutical) => ({ label: `${pharmaceutical.name} (${pharmaceutical.SKU})`, value: pharmaceutical.SKU }))} required emptyLabel="Select SKU" />
                           <WorkflowInput label="Name" name={`edit-item-name-${index}`} value={item.name} onChange={(value) => updateItem("edit", index, { name: value })} required />
                           <WorkflowInput label="Arabic Name" name={`edit-item-arabic-name-${index}`} value={item.arabic_name} onChange={(value) => updateItem("edit", index, { arabic_name: value })} />
                           <WorkflowInput label="Quantity" name={`edit-item-quantity-${index}`} type="number" value={item.quantity} onChange={(value) => updateItem("edit", index, { quantity: value })} required />

@@ -68,16 +68,26 @@ export function AppShell({ user, children }: AppShellProps) {
                 </div>
                 <div className="space-y-1">
                   {group.items.map((item) => {
-                    const active = pathname === item.href;
+                    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const isNestedVisitItem = item.href === "/visits";
 
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`block rounded-lg px-3 py-2.5 transition ${active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-white"}`}
+                        className={`block rounded-lg border px-3 py-2.5 transition ${
+                          active
+                            ? "border-slate-900 bg-slate-900 shadow-sm"
+                            : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white"
+                        } ${isNestedVisitItem ? "ml-4 bg-slate-50/80" : ""}`}
                       >
-                        <div className="text-sm font-medium">{item.label}</div>
-                        <div className={`mt-1 text-[11px] leading-5 ${active ? "text-slate-200" : "text-slate-500"}`}>
+                        <div className="flex items-center gap-2">
+                          {isNestedVisitItem ? (
+                            <span className={`inline-block h-px w-3 ${active ? "bg-slate-200" : "bg-slate-300"}`} />
+                          ) : null}
+                          <div className={`${active ? "text-white" : "text-slate-800"} text-sm font-medium ${isNestedVisitItem ? "text-[13px]" : ""}`}>{item.label}</div>
+                        </div>
+                        <div className={`mt-1 leading-5 ${active ? "text-slate-200" : "text-slate-500"} ${isNestedVisitItem ? "pl-5 text-[11px]" : "text-[11px]"}`}>
                           {item.description}
                         </div>
                       </Link>
