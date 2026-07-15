@@ -138,8 +138,10 @@ export function SuppliersWorkspace() {
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingTransaction, setSavingTransaction] = useState(false);
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<number, string>>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -430,6 +432,32 @@ export function SuppliersWorkspace() {
     }
   }
 
+  async function recordPayment(payment: SupplierPaymentHistory, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(paymentAmounts[payment.id] || 0);
+    if (!amount || amount <= 0) {
+      setError("Enter a payment amount greater than zero.");
+      return;
+    }
+
+    setPayingId(payment.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await mutateJson(`/supplier-payments/${payment.id}/pay`, "PATCH", {
+        amount,
+      });
+      setPaymentAmounts((current) => ({ ...current, [payment.id]: "" }));
+      setNotice("Supplier payment recorded successfully.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to record supplier payment.");
+    } finally {
+      setPayingId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -646,6 +674,26 @@ export function SuppliersWorkspace() {
                                 <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{formatCompactMoney(transactionTotal(transaction))}</div>
                               </div>
                             </div>
+                            <div className="mt-3 space-y-2">
+                              {(transaction.items_bought ?? []).map((item, index) => (
+                                <div key={`${transaction.id}-${item.sku}-${index}`} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                      <div className="truncate text-sm font-medium text-slate-900">
+                                        {item.name || item.sku}
+                                        {item.sku ? <span className="ml-2 text-xs font-normal text-slate-500">{item.sku}</span> : null}
+                                      </div>
+                                      {item.arabic_name ? <div className="mt-0.5 text-xs text-slate-500">{item.arabic_name}</div> : null}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                      <span>{formatCompactNumber(Number(item.quantity ?? 0))} units</span>
+                                      <span>@ {formatCompactMoney(Number(item.price ?? 0))}</span>
+                                      <span className="font-medium text-slate-900">{formatCompactMoney(Number(item.quantity ?? 0) * Number(item.price ?? 0))}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <button type="button" onClick={() => startTransactionEdit(transaction)} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
                                 Edit
@@ -673,6 +721,7 @@ export function SuppliersWorkspace() {
                             <div className="text-sm font-semibold text-slate-950">Payment #{payment.id}</div>
                             <div className="mt-1 text-sm text-slate-600">Transaction #{payment.transaction_id}</div>
                             <div className="mt-1 text-xs text-slate-500">{formatLocalDateTime(payment.created_at)}</div>
+                            <div className="mt-1 text-xs text-slate-500">Status: {payment.payment_status || "unpaid"}</div>
                           </div>
                           <div className="text-right text-xs text-slate-500">
                             <div>Total {formatCompactMoney(Number(payment.total_amount ?? 0))}</div>
@@ -680,6 +729,25 @@ export function SuppliersWorkspace() {
                             <div>Open {formatCompactMoney(paymentBalance(payment))}</div>
                           </div>
                         </div>
+                        {paymentBalance(payment) > 0 ? (
+                          <form className="mt-3 flex flex-col gap-3 md:flex-row md:items-end" onSubmit={(event) => void recordPayment(payment, event)}>
+                            <div className="min-w-0 flex-1">
+                              <WorkflowInput
+                                label="Record Payment"
+                                name={`supplier-payment-${payment.id}`}
+                                type="number"
+                                value={paymentAmounts[payment.id] ?? ""}
+                                onChange={(value) => setPaymentAmounts((current) => ({ ...current, [payment.id]: value }))}
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                              {payingId === payment.id ? "Saving..." : "Add Payment"}
+                            </button>
+                          </form>
+                        ) : (
+                          <div className="mt-3 text-xs font-medium text-emerald-700">Fully paid.</div>
+                        )}
                       </div>
                     ))}
                     {supplierPayments.length === 0 ? <div className="text-sm text-slate-500">No payment records linked to this supplier yet.</div> : null}
