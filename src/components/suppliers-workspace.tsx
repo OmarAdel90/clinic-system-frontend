@@ -14,6 +14,8 @@ type SupplierForm = {
   phone_number: string;
 };
 
+type SupplierView = "overview" | "transactions" | "payments";
+
 const initialForm: SupplierForm = {
   name: "",
   phone_number: "",
@@ -47,6 +49,7 @@ export function SuppliersWorkspace() {
   const [transactions, setTransactions] = useState<WarehouseSupplierTransaction[]>([]);
   const [payments, setPayments] = useState<SupplierPaymentHistory[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedView, setSelectedView] = useState<SupplierView>("overview");
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<SupplierForm>(initialForm);
   const [editForm, setEditForm] = useState<SupplierForm>(initialForm);
@@ -72,8 +75,8 @@ export function SuppliersWorkspace() {
   }, [search, suppliers]);
 
   const selectedSupplier = useMemo(
-    () => suppliers.find((supplier) => supplier.id === selectedId) ?? filteredSuppliers[0] ?? suppliers[0] ?? null,
-    [filteredSuppliers, selectedId, suppliers],
+    () => suppliers.find((supplier) => supplier.id === selectedId) ?? null,
+    [selectedId, suppliers],
   );
 
   const supplierTransactions = useMemo(
@@ -124,7 +127,7 @@ export function SuppliersWorkspace() {
       setSuppliers(supplierRows);
       setTransactions(transactionRows);
       setPayments(paymentRows);
-      setSelectedId((current) => current ?? supplierRows[0]?.id ?? null);
+      setSelectedId((current) => current ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load suppliers.");
     } finally {
@@ -193,6 +196,7 @@ export function SuppliersWorkspace() {
       setNotice(`Supplier #${id} deleted successfully.`);
       if (selectedId === id) {
         setSelectedId(null);
+        setSelectedView("overview");
       }
       await load();
     } catch (err) {
@@ -206,7 +210,7 @@ export function SuppliersWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Suppliers"
-        description="Work suppliers like a CRM resource: directory on the left, vendor profile, intake history, and payment position on the right."
+        description="Work suppliers like a CRM resource: start from the directory, then open supplier-level details, transactions, and payment position from the top submenu."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -219,95 +223,132 @@ export function SuppliersWorkspace() {
         <StatCard label="Active Vendors" value={stats.activeWithTransactions} hint="Suppliers already tied to at least one warehouse transaction." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <Panel title="Supplier Directory" description="Search suppliers and select one to review their profile, warehouse batches, and supplier-side balances.">
-          <div className="mb-4">
-            <WorkflowInput label="Search" name="supplier-search" value={search} onChange={setSearch} placeholder="Name, phone, or id" />
+      <Panel title="Supplier Directory" description="Search suppliers, select one, then open its CRM-style detail submenu above the content area.">
+        <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
+          <div>
+            <div className="mb-4">
+              <WorkflowInput label="Search" name="supplier-search" value={search} onChange={setSearch} placeholder="Name, phone, or id" />
+            </div>
+
+            {loading ? (
+              <div className="text-sm text-slate-500">Loading suppliers...</div>
+            ) : (
+              <div className="space-y-3">
+                {filteredSuppliers.map((supplier) => {
+                  const active = selectedSupplier?.id === supplier.id;
+                  const linkedTransactions = transactions.filter((transaction) => transaction.supplier_id === supplier.id).length;
+                  return (
+                    <button
+                      key={supplier.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(supplier.id);
+                        setSelectedView("overview");
+                      }}
+                      className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold">{supplier.name}</div>
+                          <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{supplier.phone_number || "No phone number"}</div>
+                        </div>
+                        <div className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${active ? "bg-white/10 text-white" : "bg-white text-slate-600"}`}>#{supplier.id}</div>
+                      </div>
+                      <div className={`mt-3 flex items-center justify-between text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                        <span>{linkedTransactions} transactions</span>
+                        <span>Created {formatLocalDateTime(supplier.created_at)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {filteredSuppliers.length === 0 ? <div className="text-sm text-slate-500">No suppliers match the current search.</div> : null}
+              </div>
+            )}
           </div>
 
-          {loading ? (
-            <div className="text-sm text-slate-500">Loading suppliers...</div>
-          ) : (
-            <div className="space-y-3">
-              {filteredSuppliers.map((supplier) => {
-                const active = selectedSupplier?.id === supplier.id;
-                const linkedTransactions = transactions.filter((transaction) => transaction.supplier_id === supplier.id).length;
-                return (
-                  <button
-                    key={supplier.id}
-                    type="button"
-                    onClick={() => setSelectedId(supplier.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold">{supplier.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{supplier.phone_number || "No phone number"}</div>
-                      </div>
-                      <div className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${active ? "bg-white/10 text-white" : "bg-white text-slate-600"}`}>#{supplier.id}</div>
-                    </div>
-                    <div className={`mt-3 flex items-center justify-between text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                      <span>{linkedTransactions} transactions</span>
-                      <span>Created {formatLocalDateTime(supplier.created_at)}</span>
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredSuppliers.length === 0 ? <div className="text-sm text-slate-500">No suppliers match the current search.</div> : null}
-            </div>
-          )}
-        </Panel>
+          <div className="space-y-6">
+            <Panel title="Create Supplier" description="Add a new vendor to the directory before recording warehouse batches against it.">
+              <form className="space-y-4" onSubmit={createSupplier}>
+                <WorkflowInput label="Name" name="create-supplier-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
+                <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
+                <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                  {savingCreate ? "Saving..." : "Create Supplier"}
+                </button>
+              </form>
+            </Panel>
 
-        <div className="space-y-6">
-          <Panel title="Supplier Workspace" description="Keep contact data, warehouse intake, and supplier balances inside the selected vendor record.">
             {selectedSupplier ? (
-              <div className="space-y-5">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-950">{selectedSupplier.name}</div>
-                      <div className="mt-1 text-sm text-slate-600">{selectedSupplier.phone_number || "No phone number"}</div>
-                      <div className="mt-2 text-xs text-slate-500">Created {formatLocalDateTime(selectedSupplier.created_at)}</div>
+              <Panel title={selectedSupplier.name} description="Use the submenu to switch between the supplier overview, warehouse transaction history, and payment records.">
+                <div className="space-y-5">
+                  <div className="flex flex-wrap gap-2 border-b border-[var(--line)] pb-4">
+                    {[
+                      { key: "overview", label: "Overview" },
+                      { key: "transactions", label: "Transactions" },
+                      { key: "payments", label: "Payments" },
+                    ].map((tab) => {
+                      const active = selectedView === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setSelectedView(tab.key as SupplierView)}
+                          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedView === "overview" ? (
+                    <div className="space-y-5">
+                      <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-950">{selectedSupplier.name}</div>
+                            <div className="mt-1 text-sm text-slate-600">{selectedSupplier.phone_number || "No phone number"}</div>
+                            <div className="mt-2 text-xs text-slate-500">Created {formatLocalDateTime(selectedSupplier.created_at)}</div>
+                          </div>
+                          <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600">Supplier #{selectedSupplier.id}</div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <StatCard label="Transactions" value={selectedMetrics.totalTransactions} hint="Warehouse intake batches recorded for this supplier." />
+                        <StatCard label="Units Received" value={selectedMetrics.totalUnits} hint="Total quantities received across supplier batches." />
+                        <StatCard label="Recorded Value" value={selectedMetrics.totalValue.toFixed(2)} hint="Transaction value accumulated for this supplier." />
+                        <StatCard label="Open Balance" value={selectedMetrics.openBalance.toFixed(2)} hint="Remaining unpaid supplier balance." />
+                      </div>
+
+                      <form className="space-y-4" onSubmit={updateSupplier}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <WorkflowInput label="Name" name="edit-supplier-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                          <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                            {savingEdit ? "Saving..." : "Save Changes"}
+                          </button>
+                          <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                            {deletingId === selectedSupplier.id ? "Deleting..." : "Delete Supplier"}
+                          </button>
+                        </div>
+                      </form>
                     </div>
-                    <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600">Supplier #{selectedSupplier.id}</div>
-                  </div>
-                </div>
+                  ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <StatCard label="Transactions" value={selectedMetrics.totalTransactions} hint="Warehouse intake batches recorded for this supplier." />
-                  <StatCard label="Units Received" value={selectedMetrics.totalUnits} hint="Total quantities received across supplier batches." />
-                  <StatCard label="Recorded Value" value={selectedMetrics.totalValue.toFixed(2)} hint="Transaction value accumulated for this supplier." />
-                  <StatCard label="Open Balance" value={selectedMetrics.openBalance.toFixed(2)} hint="Remaining unpaid supplier balance." />
-                </div>
-
-                <form className="space-y-4" onSubmit={updateSupplier}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <WorkflowInput label="Name" name="edit-supplier-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedSupplier.id ? "Deleting..." : "Delete Supplier"}
-                    </button>
-                  </div>
-                </form>
-
-                <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                  <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-                    <div className="mb-3 text-sm font-semibold text-slate-950">Recent Supplier Batches</div>
+                  {selectedView === "transactions" ? (
                     <div className="space-y-3">
-                      {supplierTransactions.slice(0, 8).map((transaction) => (
-                        <div key={transaction.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                      {supplierTransactions.slice(0, 12).map((transaction) => (
+                        <div key={transaction.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium text-slate-900">Transaction #{transaction.id}</div>
                             <div className="text-xs text-slate-500">{formatLocalDateTime(transaction.transaction_date || transaction.created_at)}</div>
                           </div>
                           <div className="mt-2 text-sm text-slate-600">{transaction.warehouse?.name || `Warehouse #${transaction.warehouse_id}`}</div>
-                          <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                          <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-4">
                             <div>Items: {transaction.items_bought?.length ?? 0}</div>
+                            <div>Units: {(transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0)}</div>
                             <div>Value: {transactionTotal(transaction).toFixed(2)}</div>
                             <div>Clinic: {transaction.warehouse?.clinic?.name || "-"}</div>
                           </div>
@@ -315,18 +356,17 @@ export function SuppliersWorkspace() {
                       ))}
                       {supplierTransactions.length === 0 ? <div className="text-sm text-slate-500">No warehouse batches recorded for this supplier yet.</div> : null}
                     </div>
-                  </div>
+                  ) : null}
 
-                  <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-                    <div className="mb-3 text-sm font-semibold text-slate-950">Payment Position</div>
+                  {selectedView === "payments" ? (
                     <div className="space-y-3">
-                      {supplierPayments.slice(0, 8).map((payment) => (
-                        <div key={payment.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                      {supplierPayments.slice(0, 12).map((payment) => (
+                        <div key={payment.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium text-slate-900">Payment #{payment.id}</div>
                             <div className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">{payment.payment_status || "unpaid"}</div>
                           </div>
-                          <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                          <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
                             <div>Total: {Number(payment.total_amount ?? 0).toFixed(2)}</div>
                             <div>Paid: {Number(payment.total_paid ?? 0).toFixed(2)}</div>
                             <div>Balance: {paymentBalance(payment).toFixed(2)}</div>
@@ -335,25 +375,13 @@ export function SuppliersWorkspace() {
                       ))}
                       {supplierPayments.length === 0 ? <div className="text-sm text-slate-500">No payment records linked to this supplier yet.</div> : null}
                     </div>
-                  </div>
+                  ) : null}
                 </div>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a supplier to review its full workspace.</div>
-            )}
-          </Panel>
-
-          <Panel title="Create Supplier" description="Add a new vendor to the supplier directory before recording warehouse batches against it.">
-            <form className="space-y-4" onSubmit={createSupplier}>
-              <WorkflowInput label="Name" name="create-supplier-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-              <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                {savingCreate ? "Saving..." : "Create Supplier"}
-              </button>
-            </form>
-          </Panel>
+              </Panel>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }
