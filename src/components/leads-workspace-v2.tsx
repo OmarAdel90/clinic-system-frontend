@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { fetchCollection, mutateJson } from "@/lib/api";
 import type { Campaign, Clinic, Conversation, Lead, LeadStatus, User } from "@/lib/types";
 import { formatLocalDateTime, formatRelativeDateLabel } from "@/lib/time";
@@ -41,6 +42,8 @@ function getLeadStatusColor(lead: Lead) {
 }
 
 export function LeadsWorkspaceV2() {
+  const searchParams = useSearchParams();
+  const leadFromQuery = searchParams.get("lead");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [statuses, setStatuses] = useState<LeadStatus[]>([]);
@@ -125,6 +128,13 @@ export function LeadsWorkspaceV2() {
       setClinics(clinicRows);
       setUsers(userRows);
       setSelectedLeadId((current) => {
+        if (leadFromQuery) {
+          const requestedId = Number(leadFromQuery);
+          if (!Number.isNaN(requestedId) && leadRows.some((lead) => lead.id === requestedId)) {
+            return requestedId;
+          }
+        }
+
         if (current && leadRows.some((lead) => lead.id === current)) {
           return current;
         }
@@ -143,7 +153,7 @@ export function LeadsWorkspaceV2() {
     queueMicrotask(() => {
       void load();
     });
-  }, []);
+  }, [leadFromQuery]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
