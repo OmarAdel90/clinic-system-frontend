@@ -91,6 +91,7 @@ export function ClinicsWorkspace() {
   const [users, setUsers] = useState<User[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<ClinicForm>(initialForm);
   const [editForm, setEditForm] = useState<ClinicForm>(initialForm);
@@ -123,10 +124,7 @@ export function ClinicsWorkspace() {
     });
   }, [clinics, search]);
 
-  const selectedClinic = useMemo(
-    () => clinics.find((clinic) => clinic.id === selectedId) ?? filteredClinics[0] ?? clinics[0] ?? null,
-    [clinics, filteredClinics, selectedId],
-  );
+  const selectedClinic = useMemo(() => clinics.find((clinic) => clinic.id === selectedId) ?? null, [clinics, selectedId]);
 
   const doctorOptions = useMemo(
     () => users.map((user) => ({ id: user.id, label: user.name || user.email })),
@@ -165,7 +163,6 @@ export function ClinicsWorkspace() {
       setClinics(clinicPayload);
       setUsers(userPayload);
       setWarehouses(warehousePayload);
-      setSelectedId((current) => current ?? clinicPayload[0]?.id ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load clinics.");
     } finally {
@@ -244,6 +241,7 @@ export function ClinicsWorkspace() {
       setNotice(`Clinic #${clinicId} deleted successfully.`);
       if (selectedId === clinicId) {
         setSelectedId(null);
+        setDetailsOpen(false);
       }
       await load();
     } catch (err) {
@@ -280,6 +278,11 @@ export function ClinicsWorkspace() {
     );
   }
 
+  function openClinicDetails(id: number) {
+    setSelectedId(id);
+    setDetailsOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -298,7 +301,7 @@ export function ClinicsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Clinic List" description="Search branches and select one for setup changes.">
+        <Panel title="Clinic List" description="Search branches, then open a focused popup to manage staffing, services, and warehouse linkage.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="clinic-search" value={search} onChange={setSearch} placeholder="Name, phone, address, service, or id" />
           </div>
@@ -313,26 +316,26 @@ export function ClinicsWorkspace() {
                   <button
                     key={clinic.id}
                     type="button"
-                    onClick={() => setSelectedId(clinic.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)]"}`}
+                    onClick={() => openClinicDetails(clinic.id)}
+                    className={`w-full rounded-lg border p-4 text-left transition ${active ? "border-slate-300 bg-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300 hover:bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold">{clinic.name}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-300" : "text-slate-600"}`}>{clinic.arabic_name || clinic.phone_number || clinic.address || "No contact details yet"}</div>
+                        <div className="text-sm font-semibold text-slate-950">{clinic.name}</div>
+                        <div className="mt-1 text-sm text-slate-600">{clinic.arabic_name || clinic.phone_number || clinic.address || "No contact details yet"}</div>
                       </div>
-                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${clinic.provides_medication ? active ? "bg-emerald-400/20 text-emerald-100" : "bg-emerald-50 text-emerald-700" : active ? "bg-amber-400/20 text-amber-100" : "bg-amber-50 text-amber-700"}`}>
+                      <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${clinic.provides_medication ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                         {clinic.provides_medication ? "Medication" : "Services Only"}
                       </div>
                     </div>
-                    <div className={`mt-3 flex flex-wrap gap-2 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                       {clinic.provides_medication ? (
-                        <span className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
                           Warehouse: {clinic.warehouse?.name || "Not linked"}
                         </span>
                       ) : null}
                       {(clinic.services || []).slice(0, 4).map((service) => (
-                        <span key={service} className={`rounded-full px-2.5 py-1 ${active ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                        <span key={service} className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
                           {service}
                         </span>
                       ))}
@@ -362,52 +365,71 @@ export function ClinicsWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected Clinic" description="Adjust branch details and warehouse linkage for the selected clinic.">
-            {selectedClinic ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedClinic.name}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedClinic.arabic_name || selectedClinic.address || "No address set"}</div>
-                  <div className="mt-1 text-xs text-slate-500">{selectedClinic.address || "No address set"}</div>
-                  <div className="mt-2 text-xs text-slate-500">
-                    Warehouse: {selectedClinic.provides_medication ? selectedClinic.warehouse?.name || "Not linked" : "Not applicable for services-only clinics"}
-                  </div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateClinic}>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
-                    <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
-                    <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
-                    <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
-                    <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} emptyLabel="No warehouse" />
-                  </div>
-                  {!editForm.provides_medication ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      Services-only clinics cannot keep a warehouse. Any linked warehouse will be removed when you save.
-                    </div>
-                  ) : null}
-                  <WorkflowTextarea label="Address" value={editForm.address} onChange={(value) => setEditForm((current) => ({ ...current, address: value }))} />
-                  <WorkflowTextarea label="Departments" value={editForm.departments} onChange={(value) => setEditForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
-                  <WorkflowTextarea label="Services" value={editForm.services} onChange={(value) => setEditForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
-                  {renderDoctorPicker(editForm, setEditForm)}
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteClinic(selectedClinic.id)} disabled={deletingId === selectedClinic.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedClinic.id ? "Deleting..." : "Delete Clinic"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a clinic to edit branch setup details.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedClinic ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedClinic.name}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedClinic.arabic_name || selectedClinic.address || "No address set"}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Warehouse: {selectedClinic.provides_medication ? selectedClinic.warehouse?.name || "Not linked" : "Not applicable for services-only clinics"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Doctors" value={selectedClinic.doctors?.length ?? 0} hint="Assigned doctor user ids." />
+                <StatCard label="Departments" value={selectedClinic.departments?.length ?? 0} hint="Configured departments." />
+                <StatCard label="Services" value={selectedClinic.services?.length ?? 0} hint="Configured services." />
+                <StatCard label="Warehouse" value={selectedClinic.provides_medication ? selectedClinic.warehouse?.name || "None" : "N/A"} hint="Linked warehouse state." />
+              </div>
+
+              <div className="mt-5">
+                <Panel title="Clinic Details" description="Adjust branch details, staffing, and warehouse linkage without leaving the list view.">
+                  <form className="space-y-4" onSubmit={updateClinic}>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                      <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
+                      <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
+                      <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
+                      <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: warehouse.id }))} emptyLabel="No warehouse" />
+                    </div>
+                    {!editForm.provides_medication ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        Services-only clinics cannot keep a warehouse. Any linked warehouse will be removed when you save.
+                      </div>
+                    ) : null}
+                    <WorkflowTextarea label="Address" value={editForm.address} onChange={(value) => setEditForm((current) => ({ ...current, address: value }))} />
+                    <WorkflowTextarea label="Departments" value={editForm.departments} onChange={(value) => setEditForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
+                    <WorkflowTextarea label="Services" value={editForm.services} onChange={(value) => setEditForm((current) => ({ ...current, services: value }))} placeholder="One per line or comma separated" />
+                    {renderDoctorPicker(editForm, setEditForm)}
+                    <div className="flex flex-wrap gap-3">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {savingEdit ? "Saving..." : "Save Changes"}
+                      </button>
+                      <button type="button" onClick={() => void deleteClinic(selectedClinic.id)} disabled={deletingId === selectedClinic.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        {deletingId === selectedClinic.id ? "Deleting..." : "Delete Clinic"}
+                      </button>
+                    </div>
+                  </form>
+                </Panel>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
