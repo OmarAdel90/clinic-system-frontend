@@ -11,16 +11,22 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
 
+type InvoiceDetailsView = "overview" | "report" | "payment";
+
 export function InvoicesWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Record<number, string>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedView, setSelectedView] = useState<InvoiceDetailsView>("overview");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeInvoice, setActiveInvoice] = useState<number | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -75,19 +81,29 @@ export function InvoicesWorkspace() {
     setActiveInvoice(invoiceId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/invoices/${invoiceId}/pay`, "PATCH", {
         amount: Number(payments[invoiceId] || 0),
       });
       setPayments((current) => ({ ...current, [invoiceId]: "" }));
-      setNotice(`Payment recorded for invoice #${invoiceId}.`);
+      setDetailsNotice(`Payment recorded for invoice #${invoiceId}.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to record payment.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to record payment.");
     } finally {
       setActiveInvoice(null);
     }
+  }
+
+  function openInvoiceDetails(invoiceId: number) {
+    setSelectedInvoiceId(invoiceId);
+    setSelectedView("overview");
+    setDetailsError(null);
+    setDetailsNotice(null);
+    setDetailsOpen(true);
   }
 
   return (
@@ -107,7 +123,7 @@ export function InvoicesWorkspace() {
         <StatCard label="Paid" value={stats.paid} hint="Invoices fully settled." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
+      <div className="grid gap-6">
         <Panel title="Payment Queue" description="Quick payment handling with enough context to know what each invoice belongs to.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowInput label="Search" name="invoice-search" value={search} onChange={setSearch} placeholder="Lead, clinic, invoice number, or id" />
@@ -130,7 +146,7 @@ export function InvoicesWorkspace() {
             <div className="space-y-4">
               {filteredInvoices.map((invoice) => (
                 <div key={invoice.id} className={`grid gap-4 rounded-xl border p-4 lg:grid-cols-[1fr_auto] ${selectedInvoice?.id === invoice.id ? "border-slate-900 bg-white" : "border-[var(--line)] bg-[var(--surface)]"}`}>
-                  <button type="button" onClick={() => setSelectedInvoiceId(invoice.id)} className="text-left">
+                  <button type="button" onClick={() => openInvoiceDetails(invoice.id)} className="text-left">
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="text-sm font-semibold text-slate-950">
                         {invoice.invoice_number || `Invoice #${invoice.id}`}
@@ -173,47 +189,116 @@ export function InvoicesWorkspace() {
             </div>
           )}
         </Panel>
+      </div>
 
-        <Panel title="Invoice Detail" description="Selected billing context including the linked report and remaining balance.">
-          {selectedInvoice ? (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">{selectedInvoice.invoice_number || `Invoice #${selectedInvoice.id}`}</div>
-                    <div className="mt-1 text-sm text-slate-600">{selectedInvoice.lead?.name || selectedInvoice.lead?.profile_name || `Lead #${selectedInvoice.lead_id ?? "-"}`}</div>
-                  </div>
-                  <StatusBadge value={selectedInvoice.status} />
-                </div>
-                <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-                  <div>Clinic: {selectedInvoice.clinic?.name || `Clinic #${selectedInvoice.clinic_id ?? "-"}`}</div>
-                  <div>Issued: {formatLocalDateTime(selectedInvoice.issued_at)}</div>
-                  <div>Total Cost: {selectedInvoice.total_cost ?? 0}</div>
-                  <div>Amount Paid: {selectedInvoice.amount_paid ?? 0}</div>
-                  <div>Remaining: {Math.max((selectedInvoice.total_cost ?? 0) - (selectedInvoice.amount_paid ?? 0), 0)}</div>
-                  <div>Treatment Plan: {selectedInvoice.treatment_plan_id ?? "-"}</div>
-                </div>
+      {detailsOpen && selectedInvoice ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedInvoice.invoice_number || `Invoice #${selectedInvoice.id}`}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedInvoice.lead?.name || selectedInvoice.lead?.profile_name || `Lead #${selectedInvoice.lead_id ?? "-"}`}</div>
               </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
 
-              <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-                <div className="text-sm font-semibold text-slate-950">Linked Report</div>
-                {selectedInvoice.report ? (
-                  <div className="mt-3 grid gap-3 text-sm text-slate-600">
-                    <div>Diagnosis: {selectedInvoice.report.diagnosis || "-"}</div>
-                    <div>Treatment Notes: {selectedInvoice.report.treatment_notes || "-"}</div>
-                    <div>Summary: {selectedInvoice.report.body || "-"}</div>
-                    <div>Supplies Used: {(selectedInvoice.report.supplies_used?.length ?? 0) || "-"}</div>
-                  </div>
-                ) : (
-                  <div className="mt-3 text-sm text-slate-500">This invoice is not currently linked to a loaded report payload.</div>
-                )}
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "report", label: "Report" },
+                  { key: "payment", label: "Payment" },
+                ].map((tab) => {
+                  const active = selectedView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedView(tab.key as InvoiceDetailsView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          ) : (
-            <div className="text-sm text-slate-500">Select an invoice to inspect its billing context.</div>
-          )}
-        </Panel>
-      </div>
+
+            <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
+              {selectedView === "overview" ? (
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard label="Status" value={selectedInvoice.status || "-"} hint="Current invoice payment state." />
+                    <StatCard label="Total" value={selectedInvoice.total_cost ?? 0} hint="Total billed amount." />
+                    <StatCard label="Paid" value={selectedInvoice.amount_paid ?? 0} hint="Amount recorded so far." />
+                    <StatCard label="Remaining" value={Math.max((selectedInvoice.total_cost ?? 0) - (selectedInvoice.amount_paid ?? 0), 0)} hint="Open balance left on this invoice." />
+                  </div>
+
+                  <Panel title="Invoice Context" description="Selected billing context including the linked clinic and treatment plan.">
+                    <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                      <div>Clinic: {selectedInvoice.clinic?.name || `Clinic #${selectedInvoice.clinic_id ?? "-"}`}</div>
+                      <div>Issued: {formatLocalDateTime(selectedInvoice.issued_at)}</div>
+                      <div>Treatment Plan: {selectedInvoice.treatment_plan_id ?? "-"}</div>
+                      <div>Lead: {selectedInvoice.lead?.name || selectedInvoice.lead?.profile_name || `Lead #${selectedInvoice.lead_id ?? "-"}`}</div>
+                    </div>
+                  </Panel>
+                </div>
+              ) : null}
+
+              {selectedView === "report" ? (
+                <div className="space-y-5">
+                  <Panel title="Linked Report" description="Clinical report and usage context attached to this invoice.">
+                    {selectedInvoice.report ? (
+                      <div className="grid gap-3 text-sm text-slate-600">
+                        <div>Diagnosis: {selectedInvoice.report.diagnosis || "-"}</div>
+                        <div>Treatment Notes: {selectedInvoice.report.treatment_notes || "-"}</div>
+                        <div>Summary: {selectedInvoice.report.body || "-"}</div>
+                        <div>Supplies Used: {(selectedInvoice.report.supplies_used?.length ?? 0) || "-"}</div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">This invoice is not currently linked to a loaded report payload.</div>
+                    )}
+                  </Panel>
+                </div>
+              ) : null}
+
+              {selectedView === "payment" ? (
+                <div className="space-y-5">
+                  <Panel title="Record Payment" description="Apply a payment directly to the selected invoice.">
+                    <form className="space-y-4" onSubmit={(event) => submitPayment(event, selectedInvoice.id)}>
+                      <WorkflowInput
+                        label="Payment Amount"
+                        name={`detail-amount-${selectedInvoice.id}`}
+                        type="number"
+                        value={payments[selectedInvoice.id] ?? ""}
+                        onChange={(value) =>
+                          setPayments((current) => ({
+                            ...current,
+                            [selectedInvoice.id]: value,
+                          }))
+                        }
+                        placeholder="0.00"
+                        required
+                      />
+                      <button type="submit" disabled={activeInvoice === selectedInvoice.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        {activeInvoice === selectedInvoice.id ? "Saving..." : "Record Payment"}
+                      </button>
+                    </form>
+                  </Panel>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

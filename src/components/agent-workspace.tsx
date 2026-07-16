@@ -2,7 +2,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchCollection, fetchResource, mutateJson } from "@/lib/api";
 import type {
   AgentMetrics,
@@ -21,7 +21,8 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 
 function getConversationTitle(conversation: Conversation) {
-  return conversation.lead?.name || conversation.lead?.profile_name || `Lead #${conversation.lead_id ?? conversation.id}`;
+  const arabicName = (conversation.lead as (Conversation["lead"] & { arabic_name?: string | null }) | null | undefined)?.arabic_name;
+  return conversation.lead?.name || arabicName || conversation.lead?.profile_name || `Lead #${conversation.lead_id ?? conversation.id}`;
 }
 
 function getPlatformLabel(platform?: string | null) {
@@ -142,6 +143,8 @@ function SearchableSelect({ label, value, onChange, options, placeholder }: Sear
 
 export function AgentWorkspace() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const conversationFromQuery = searchParams.get("conversation");
   const [metrics, setMetrics] = useState<AgentMetrics | null>(null);
   const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -169,6 +172,8 @@ export function AgentWorkspace() {
   const [threadRefreshing, setThreadRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
   const threadViewportRef = useRef<HTMLDivElement | null>(null);
 
   const filteredFollowups = useMemo(() => {
@@ -225,6 +230,20 @@ export function AgentWorkspace() {
   useEffect(() => {
     void loadWorkspace();
   }, []);
+
+  useEffect(() => {
+    if (!conversationFromQuery || conversations.length === 0) {
+      return;
+    }
+
+    const requestedId = Number(conversationFromQuery);
+    if (Number.isNaN(requestedId) || !conversations.some((conversation) => conversation.id === requestedId)) {
+      return;
+    }
+
+    setSelectedConversationId(requestedId);
+    setDetailsOpen(true);
+  }, [conversationFromQuery, conversations]);
 
   useEffect(() => {
     if (!selectedConversation) {
@@ -378,6 +397,8 @@ export function AgentWorkspace() {
     setSending(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       const response = await mutateJson<{ messages: MessageRecord[] }>("/agent/messages/send", "POST", {
@@ -391,9 +412,9 @@ export function AgentWorkspace() {
       }));
       updateConversationSnapshot(selectedConversation.id, response.messages);
       setComposerBody("");
-      setNotice(`Message sent in conversation #${selectedConversation.id}.`);
+      setDetailsNotice(`Message sent in conversation #${selectedConversation.id}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to send message.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to send message.");
     } finally {
       setSending(false);
     }
@@ -403,6 +424,8 @@ export function AgentWorkspace() {
     setCompletingFollowupId(followupId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson<FollowUp>(`/agent/followups/${followupId}/complete`, "PATCH", {});
@@ -416,9 +439,9 @@ export function AgentWorkspace() {
             }
           : current,
       );
-      setNotice(`Follow-up #${followupId} marked complete.`);
+      setDetailsNotice(`Follow-up #${followupId} marked complete.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete follow-up.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to complete follow-up.");
     } finally {
       setCompletingFollowupId(null);
     }
@@ -434,6 +457,8 @@ export function AgentWorkspace() {
     setSavingLead(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       const updatedLead = await mutateJson<Conversation["lead"]>(`/leads/${selectedConversation.lead.id}`, "PATCH", {
@@ -444,9 +469,9 @@ export function AgentWorkspace() {
       });
 
       applyLeadPatchToConversation(selectedConversation.lead.id, updatedLead ?? {});
-      setNotice(`Lead #${selectedConversation.lead.id} updated successfully.`);
+      setDetailsNotice(`Lead #${selectedConversation.lead.id} updated successfully.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update lead.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update lead.");
     } finally {
       setSavingLead(false);
     }
@@ -460,6 +485,8 @@ export function AgentWorkspace() {
     setAssigningClinic(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       if (clinicId) {
@@ -473,17 +500,17 @@ export function AgentWorkspace() {
           clinic_id: Number(clinicId),
           clinic: selectedClinic,
         });
-        setNotice("Clinic assigned successfully.");
+        setDetailsNotice("Clinic assigned successfully.");
       } else {
         const updatedLead = await mutateJson<Conversation["lead"]>(`/leads/${selectedConversation.lead.id}`, "PATCH", {
             clinic_id: null,
           });
 
         applyLeadPatchToConversation(selectedConversation.lead.id, updatedLead ?? { clinic_id: null, clinic: null });
-        setNotice("Clinic assignment cleared.");
+        setDetailsNotice("Clinic assignment cleared.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update clinic assignment.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update clinic assignment.");
     } finally {
       setAssigningClinic(false);
     }
@@ -491,6 +518,8 @@ export function AgentWorkspace() {
 
   function openConversation(conversationId: number) {
     setSelectedConversationId(conversationId);
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -662,6 +691,8 @@ export function AgentWorkspace() {
             </div>
 
             <div className="max-h-[calc(92vh-82px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
                 <div className="space-y-5">
                   <Panel title="Thread" description="Work the conversation in a full-width popup without leaving the queue.">

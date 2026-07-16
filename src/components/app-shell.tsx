@@ -13,6 +13,7 @@ type AppShellProps = {
 };
 
 const DEPLOY_MARKER = "Build 2026-07-09X";
+const SEEDED_ADMIN_EMAIL = "super@clinic.com";
 
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
@@ -32,7 +33,13 @@ export function AppShell({ user, children }: AppShellProps) {
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canAccess(user, item.permissions)),
+      items: group.items.filter((item) => {
+        if (item.adminOnly && user.email !== SEEDED_ADMIN_EMAIL) {
+          return false;
+        }
+
+        return canAccess(user, item.permissions);
+      }),
     }))
     .filter((group) => group.items.length > 0);
 

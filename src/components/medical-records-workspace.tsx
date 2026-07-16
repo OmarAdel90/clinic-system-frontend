@@ -13,6 +13,8 @@ import { WorkflowSelect } from "@/components/workflow-select";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
 
+type MedicalRecordView = "overview" | "file" | "edit";
+
 type MedicalRecordForm = {
   lead_id: string;
   type: string;
@@ -90,6 +92,7 @@ export function MedicalRecordsWorkspace() {
   const [selectedLeadId, setSelectedLeadId] = useState<string>(leadFromQuery);
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedRecordView, setSelectedRecordView] = useState<MedicalRecordView>("overview");
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<MedicalRecordForm>({ ...initialForm, lead_id: leadFromQuery });
   const [editForm, setEditForm] = useState<MedicalRecordForm>(initialForm);
@@ -290,6 +293,7 @@ export function MedicalRecordsWorkspace() {
 
   function openRecordDetails(id: number) {
     setSelectedRecordId(id);
+    setSelectedRecordView("overview");
     setDetailsOpen(true);
   }
 
@@ -393,16 +397,46 @@ export function MedicalRecordsWorkspace() {
               </button>
             </div>
 
-            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Type" value={selectedRecord.type} hint="Record category." />
-                <StatCard label="Lead" value={describeLead(selectedLead) || "-"} hint="Linked lead." />
-                <StatCard label="File Type" value={selectedRecord.mime_type || "-"} hint="Stored mime type." />
-                <StatCard label="Uploaded" value={selectedRecord.created_at ? formatLocalDateTime(selectedRecord.created_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Upload date." />
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "file", label: "File" },
+                  { key: "edit", label: "Edit" },
+                ].map((tab) => {
+                  const active = selectedRecordView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedRecordView(tab.key as MedicalRecordView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div className="mt-5 space-y-5">
-                <Panel title="File Access" description="Open the stored attachment directly or download a local copy.">
+            <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
+              {selectedRecordView === "overview" ? (
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard label="Type" value={selectedRecord.type} hint="Record category." />
+                    <StatCard label="Lead" value={describeLead(selectedLead) || "-"} hint="Linked lead." />
+                    <StatCard label="File Type" value={selectedRecord.mime_type || "-"} hint="Stored mime type." />
+                    <StatCard label="Uploaded" value={selectedRecord.created_at ? formatLocalDateTime(selectedRecord.created_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Upload date." />
+                  </div>
+                  <Panel title="Record Notes" description="Reference details stored with the uploaded file.">
+                    <div className="text-sm text-slate-600">{selectedRecord.notes || "No notes recorded for this file."}</div>
+                  </Panel>
+                </div>
+              ) : null}
+
+              {selectedRecordView === "file" ? (
+                <div className="space-y-5">
+                <Panel title="File Access" description="Open the stored attachment directly or save a local copy.">
                   <div className="flex flex-wrap gap-3">
                     <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/file`, "view", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                       View File
@@ -412,8 +446,12 @@ export function MedicalRecordsWorkspace() {
                     </button>
                   </div>
                 </Panel>
+                </div>
+              ) : null}
 
-                <Panel title="Record Details" description="Update the record metadata, replace the file if needed, or remove the record.">
+              {selectedRecordView === "edit" ? (
+                <div className="space-y-5">
+                <Panel title="Record Settings" description="Update the record metadata, replace the file if needed, or remove the record.">
                   <form className="space-y-4" onSubmit={updateRecord}>
                     <WorkflowSelect label="Type" value={editForm.type} onChange={(value) => setEditForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
                     <WorkflowTextarea label="Notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
@@ -431,7 +469,8 @@ export function MedicalRecordsWorkspace() {
                     </div>
                   </form>
                 </Panel>
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

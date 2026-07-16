@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { fetchCollection, mutateJson } from "@/lib/api";
+import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
 import type { Campaign, Clinic, Conversation, Lead, LeadStatus, User } from "@/lib/types";
 import { formatLocalDateTime, formatRelativeDateLabel } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
@@ -18,8 +18,6 @@ type LeadForm = {
   platform: string;
   phone: string;
   name: string;
-  profile_name: string;
-  whatsapp_id: string;
   lead_status_id: string;
 };
 
@@ -28,10 +26,16 @@ const initialForm: LeadForm = {
   platform: "whatsapp",
   phone: "",
   name: "",
-  profile_name: "",
-  whatsapp_id: "",
   lead_status_id: "",
 };
+
+type LeadDetailsView = "overview" | "conversations" | "actions";
+const NEXT_QUEUE_OPTION = "__next_queue__";
+
+function getLeadDisplayName(lead?: Lead | (Lead & { arabic_name?: string | null }) | null) {
+  if (!lead) return "Unknown lead";
+  return lead.name || (lead as Lead & { arabic_name?: string | null }).arabic_name || lead.profile_name || `Lead #${lead.id}`;
+}
 
 function getLeadStatusDisplay(lead: Lead) {
   return lead.lead_status?.label || lead.lead_status?.key || String(lead.lead_status_id ?? "new");
@@ -51,17 +55,25 @@ export function LeadsWorkspaceV2() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedLeadView, setSelectedLeadView] = useState<LeadDetailsView>("overview");
   const [assignments, setAssignments] = useState<Record<number, { clinicId: string; userId: string; leadStatusId: string }>>({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [ownershipFilter, setOwnershipFilter] = useState("all");
+  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState("all");
+  const [clinicAssignedStatusFilter, setClinicAssignedStatusFilter] = useState("all");
+  const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<LeadForm>(initialForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
+  const [deletingLeadId, setDeletingLeadId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createNotice, setCreateNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredLeads = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -75,21 +87,38 @@ export function LeadsWorkspaceV2() {
           .some((value) => String(value).toLowerCase().includes(term));
 
       const matchesStatus = statusFilter === "all" || leadStatus === statusFilter;
-      const matchesOwnership =
-        ownershipFilter === "all" ||
-        (ownershipFilter === "assigned" && Boolean(lead.assignment_state?.user_id)) ||
-        (ownershipFilter === "unassigned" && !lead.assignment_state?.user_id) ||
-        (ownershipFilter === "clinic-linked" && Boolean(lead.clinic_id)) ||
-        (ownershipFilter === "clinic-open" && !lead.clinic_id);
+      const matchesAssignmentStatus =
+        assignmentStatusFilter === "all" ||
+        (assignmentStatusFilter === "assigned" && Boolean(lead.assignment_state?.user_id)) ||
+        (assignmentStatusFilter === "unassigned" && !lead.assignment_state?.user_id);
+      const matchesClinicAssignedStatus =
+        clinicAssignedStatusFilter === "all" ||
+        (clinicAssignedStatusFilter === "assigned" && Boolean(lead.clinic_id)) ||
+        (clinicAssignedStatusFilter === "unassigned" && !lead.clinic_id);
 
-      return matchesSearch && matchesStatus && matchesOwnership;
+      return matchesSearch && matchesStatus && matchesAssignmentStatus && matchesClinicAssignedStatus;
     });
-  }, [leads, ownershipFilter, search, statusFilter]);
+  }, [assignmentStatusFilter, clinicAssignedStatusFilter, leads, search, statusFilter]);
 
   const selectedLead = useMemo(
     () => filteredLeads.find((lead) => lead.id === selectedLeadId) ?? leads.find((lead) => lead.id === selectedLeadId) ?? filteredLeads[0] ?? leads[0] ?? null,
     [filteredLeads, leads, selectedLeadId],
   );
+
+  useEffect(() => {
+    if (!selectedLead) {
+      return;
+    }
+
+    setAssignments((current) => ({
+      ...current,
+      [selectedLead.id]: {
+        clinicId: current[selectedLead.id]?.clinicId ?? (selectedLead.clinic_id ? String(selectedLead.clinic_id) : ""),
+        userId: current[selectedLead.id]?.userId ?? (selectedLead.assignment_state?.user_id ? String(selectedLead.assignment_state.user_id) : ""),
+        leadStatusId: current[selectedLead.id]?.leadStatusId ?? (selectedLead.lead_status_id ? String(selectedLead.lead_status_id) : ""),
+      },
+    }));
+  }, [selectedLead]);
 
   const stats = useMemo(() => {
     const assignedCount = leads.filter((lead) => Boolean(lead.assignment_state?.user_id)).length;
@@ -167,96 +196,113 @@ export function LeadsWorkspaceV2() {
     setSaving(true);
     setError(null);
     setNotice(null);
+    setCreateError(null);
+    setCreateNotice(null);
 
     try {
       await mutateJson<Lead>("/leads", "POST", {
-        campaign_id: Number(form.campaign_id),
+        campaign_id: form.campaign_id ? Number(form.campaign_id) : null,
         platform: form.platform,
         phone: form.phone,
         name: form.name || null,
-        profile_name: form.profile_name || null,
-        whatsapp_id: form.whatsapp_id || null,
         lead_status_id: form.lead_status_id ? Number(form.lead_status_id) : null,
       });
       setForm(initialForm);
-      setNotice("Lead created successfully.");
+      setCreateNotice("Lead created successfully.");
       await load({ silent: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create lead.");
+      setCreateError(err instanceof Error ? err.message : "Unable to create lead.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function assignClinic(leadId: number) {
-    const clinicId = assignments[leadId]?.clinicId;
-    if (!clinicId) return;
+  async function saveLeadActions(leadId: number) {
+    const lead = leads.find((row) => row.id === leadId);
+    if (!lead) return;
+    const assignment = assignments[leadId] ?? { clinicId: "", userId: "", leadStatusId: "" };
+    const currentStatusId = lead.lead_status_id ? String(lead.lead_status_id) : "";
+    const currentClinicId = lead.clinic_id ? String(lead.clinic_id) : "";
+    const currentUserId = lead.assignment_state?.user_id ? String(lead.assignment_state.user_id) : "";
+    const nextStatusId = assignment.leadStatusId || "";
+    const nextClinicId = assignment.clinicId || "";
+    const nextUserId = assignment.userId || "";
+    const statusChanged = nextStatusId !== currentStatusId;
+    const clinicChanged = nextClinicId !== currentClinicId;
+    const userChanged = nextUserId !== currentUserId;
 
-    setError(null);
-    setNotice(null);
-    try {
-      await mutateJson(`/leads/${leadId}/assign-clinic`, "PATCH", {
-        clinic_id: Number(clinicId),
-      });
-      setNotice(`Lead #${leadId} assigned to clinic successfully.`);
-      await load({ silent: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to assign clinic.");
+    if (!statusChanged && !clinicChanged && !userChanged) {
+      setDetailsNotice("No changes to save.");
+      setDetailsError(null);
+      return;
     }
-  }
-
-  async function assignAgent(leadId: number) {
-    const userId = assignments[leadId]?.userId;
-    if (!userId) return;
-
-    setError(null);
-    setNotice(null);
-    try {
-      await mutateJson("/call-center/leads/assign", "POST", {
-        lead_id: leadId,
-        user_id: Number(userId),
-      });
-      setNotice(`Lead #${leadId} assigned to user successfully.`);
-      await load({ silent: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to assign user.");
-    }
-  }
-
-  async function assignNext(leadId: number) {
-    setError(null);
-    setNotice(null);
-    try {
-      await mutateJson(`/call-center/leads/${leadId}/assign-next`, "POST", {});
-      setNotice(`Lead #${leadId} assigned to the next user in queue.`);
-      await load({ silent: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to assign next user.");
-    }
-  }
-
-  async function updateLeadStatus(leadId: number) {
-    const leadStatusId = assignments[leadId]?.leadStatusId;
-    if (!leadStatusId) return;
 
     setUpdatingLeadId(leadId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
+
     try {
-      await mutateJson(`/leads/${leadId}`, "PATCH", {
-        lead_status_id: Number(leadStatusId),
-      });
-      setNotice(`Lead #${leadId} status updated successfully.`);
+      if (statusChanged && nextStatusId) {
+        await mutateJson(`/leads/${leadId}`, "PATCH", {
+          lead_status_id: Number(nextStatusId),
+        });
+      }
+
+      if (clinicChanged && nextClinicId) {
+        await mutateJson(`/leads/${leadId}/assign-clinic`, "PATCH", {
+          clinic_id: Number(nextClinicId),
+        });
+      }
+
+      if (userChanged) {
+        if (nextUserId === NEXT_QUEUE_OPTION) {
+          await mutateJson(`/call-center/leads/${leadId}/assign-next`, "POST", {});
+        } else if (nextUserId) {
+          await mutateJson("/call-center/leads/assign", "POST", {
+            lead_id: leadId,
+            user_id: Number(nextUserId),
+          });
+        }
+      }
+
       await load({ silent: true });
+      setDetailsNotice("Lead actions saved successfully.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update lead status.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to save lead actions.");
     } finally {
       setUpdatingLeadId(null);
     }
   }
 
+  async function deleteLead(leadId: number) {
+    setDeletingLeadId(leadId);
+    setError(null);
+    setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
+
+    try {
+      await removeResource(`/leads/${leadId}`);
+      setNotice(`Lead #${leadId} deleted successfully.`);
+      if (selectedLeadId === leadId) {
+        setSelectedLeadId(null);
+        setDetailsOpen(false);
+      }
+      await load({ silent: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete lead.");
+    } finally {
+      setDeletingLeadId(null);
+    }
+  }
+
   function openLeadDetails(leadId: number) {
     setSelectedLeadId(leadId);
+    setSelectedLeadView("overview");
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -266,13 +312,22 @@ export function LeadsWorkspaceV2() {
         title="Leads"
         description="Handle intake, routing, clinic handoff, and assignment context from one CRM workspace."
         actions={
-          <button
-            type="button"
-            onClick={() => void load({ silent: true })}
-            className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+            >
+              New Lead
+            </button>
+            <button
+              type="button"
+              onClick={() => void load({ silent: true })}
+              className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         }
       />
 
@@ -287,103 +342,160 @@ export function LeadsWorkspaceV2() {
         <StatCard label="Leads With Records" value={stats.medicalRecordLeadCount} hint="Leads that already have at least one medical record on file." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, lifecycle status, and record visibility.">
-          <div className="mb-4 grid gap-3 md:grid-cols-3">
-            <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
-            <WorkflowSelect
-              label="Status"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={[{ label: "All statuses", value: "all" }, ...statuses.map((status) => ({ label: status.label, value: status.key || String(status.id) }))]}
-            />
-            <WorkflowSelect
-              label="Ownership"
-              value={ownershipFilter}
-              onChange={setOwnershipFilter}
-              options={[
-                { label: "All leads", value: "all" },
-                { label: "Assigned", value: "assigned" },
-                { label: "Unassigned", value: "unassigned" },
-                { label: "Clinic linked", value: "clinic-linked" },
-                { label: "Clinic open", value: "clinic-open" },
-              ]}
-            />
+      <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, lifecycle status, and record visibility.">
+        <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
+          <WorkflowSelect
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[{ label: "All statuses", value: "all" }, ...statuses.map((status) => ({ label: status.label, value: status.key || String(status.id) }))]}
+          />
+          <WorkflowSelect
+            label="Assignment Status"
+            value={assignmentStatusFilter}
+            onChange={setAssignmentStatusFilter}
+            options={[
+              { label: "All leads", value: "all" },
+              { label: "Assigned", value: "assigned" },
+              { label: "Unassigned", value: "unassigned" },
+            ]}
+          />
+          <WorkflowSelect
+            label="Clinic Assigned Status"
+            value={clinicAssignedStatusFilter}
+            onChange={setClinicAssignedStatusFilter}
+            options={[
+              { label: "All leads", value: "all" },
+              { label: "Assigned", value: "assigned" },
+              { label: "Unassigned", value: "unassigned" },
+            ]}
+          />
+        </div>
+
+        {loading ? <div className="text-sm text-slate-500">Loading leads...</div> : null}
+
+        {!loading ? (
+          <div className="space-y-3">
+            {filteredLeads.map((lead) => {
+              const assignedUserName =
+                lead.assignment_state?.user?.name ||
+                users.find((user) => user.id === lead.assignment_state?.user_id)?.name;
+              const active = selectedLead?.id === lead.id;
+              const medicalRecordCount = lead.medical_records_count ?? 0;
+
+              return (
+                <button
+                  key={lead.id}
+                  type="button"
+                  onClick={() => openLeadDetails(lead.id)}
+                  className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <div className="text-sm font-semibold">{getLeadDisplayName(lead)}</div>
+                      <div className={`mt-1 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>
+                        {lead.phone || "No phone"} | {lead.platform || "Unknown channel"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {medicalRecordCount > 0 ? (
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-emerald-50 text-emerald-700"}`}>
+                          {medicalRecordCount} record{medicalRecordCount === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                      <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
+                      <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
+                    </div>
+                  </div>
+                  <div className={`mt-3 grid gap-2 text-xs md:grid-cols-4 ${active ? "text-slate-300" : "text-slate-500"}`}>
+                    <div>Agent: {assignedUserName || "Unassigned"}</div>
+                    <div>Clinic: {lead.clinic?.name || "Not linked"}</div>
+                    <div>Records: {medicalRecordCount}</div>
+                    <div>Created: {formatLocalDateTime(lead.created_at)}</div>
+                  </div>
+                </button>
+              );
+            })}
+            {filteredLeads.length === 0 ? <div className="text-sm text-slate-500">No leads match the current filters.</div> : null}
           </div>
+        ) : null}
+      </Panel>
 
-          {loading ? (
-            <div className="text-sm text-slate-500">Loading leads...</div>
-          ) : (
-            <div className="space-y-3">
-              {filteredLeads.map((lead) => {
-                const assignedUserName =
-                  lead.assignment_state?.user?.name ||
-                  users.find((user) => user.id === lead.assignment_state?.user_id)?.name;
-                const active = selectedLead?.id === lead.id;
-                const medicalRecordCount = lead.medical_records_count ?? 0;
-
-                return (
-                  <button
-                    key={lead.id}
-                    type="button"
-                    onClick={() => openLeadDetails(lead.id)}
-                    className={`w-full rounded-xl border p-4 text-left transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] hover:border-slate-300"}`}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold">{lead.name || lead.profile_name || `Lead #${lead.id}`}</div>
-                        <div className={`mt-1 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>
-                          {lead.phone || "No phone"} | {lead.platform || "Unknown channel"}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {medicalRecordCount > 0 ? (
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-emerald-50 text-emerald-700"}`}>
-                            {medicalRecordCount} record{medicalRecordCount === 1 ? "" : "s"}
-                          </span>
-                        ) : null}
-                        <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
-                        <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
-                      </div>
-                    </div>
-                    <div className={`mt-3 grid gap-2 text-xs md:grid-cols-4 ${active ? "text-slate-300" : "text-slate-500"}`}>
-                      <div>Agent: {assignedUserName || "Unassigned"}</div>
-                      <div>Clinic: {lead.clinic?.name || "Not linked"}</div>
-                      <div>Records: {medicalRecordCount}</div>
-                      <div>Created: {formatLocalDateTime(lead.created_at)}</div>
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredLeads.length === 0 ? <div className="text-sm text-slate-500">No leads match the current filters.</div> : null}
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Create Lead" description="Fast intake form matching the backend lead creation contract.">
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <WorkflowSelect label="Campaign" value={form.campaign_id} onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))} options={campaigns.map((campaign) => ({ label: campaign.name, value: String(campaign.id) }))} required />
-              <WorkflowSelect label="Platform" value={form.platform} onChange={(value) => setForm((current) => ({ ...current, platform: value }))} options={[{ label: "WhatsApp", value: "whatsapp" }, { label: "Facebook", value: "facebook" }, { label: "Instagram", value: "instagram" }]} required />
-              <WorkflowInput label="Phone" name="phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="2010..." required />
-              <WorkflowInput label="Name" name="name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder="Patient name" />
-              <WorkflowInput label="Profile Name" name="profile_name" value={form.profile_name} onChange={(value) => setForm((current) => ({ ...current, profile_name: value }))} placeholder="Social profile name" />
-              <WorkflowInput label="WhatsApp ID" name="whatsapp_id" value={form.whatsapp_id} onChange={(value) => setForm((current) => ({ ...current, whatsapp_id: value }))} placeholder="Optional platform identifier" />
-              {statuses.length > 0 ? (
-                <WorkflowSelect label="Lead Status" value={form.lead_status_id} onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))} options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))} emptyLabel="No status" />
-              ) : null}
-              <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                {saving ? "Creating..." : "Create Lead"}
+      {createOpen ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-semibold text-slate-950">Create Lead</div>
+                <div className="mt-1 text-sm text-slate-600">Manual intake for phone, channel, optional campaign, and starting pipeline status.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
               </button>
-            </form>
-        </Panel>
-      </div>
+            </div>
+
+            <div className="max-h-[80vh] overflow-y-auto px-5 py-5">
+              {createError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{createError}</div> : null}
+              {createNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{createNotice}</div> : null}
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <WorkflowSelect
+                  label="Campaign"
+                  value={form.campaign_id}
+                  onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))}
+                  options={campaigns.map((campaign) => ({ label: campaign.name, value: String(campaign.id) }))}
+                  emptyLabel="No campaign"
+                />
+                <WorkflowSelect
+                  label="Platform"
+                  value={form.platform}
+                  onChange={(value) => setForm((current) => ({ ...current, platform: value }))}
+                  options={[
+                    { label: "WhatsApp", value: "whatsapp" },
+                    { label: "Facebook", value: "facebook" },
+                    { label: "Instagram", value: "instagram" },
+                    { label: "TikTok", value: "tiktok" },
+                    { label: "Snapchat", value: "snapchat" },
+                    { label: "Twitter", value: "twitter" },
+                    { label: "YouTube", value: "youtube" },
+                    { label: "Cold Call", value: "cold_call" },
+                  ]}
+                  required
+                />
+                <WorkflowInput label="Phone" name="phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="2010..." required />
+                <WorkflowInput label="Name" name="name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder="Patient name" required />
+                {statuses.length > 0 ? (
+                  <WorkflowSelect
+                    label="Lead Status"
+                    value={form.lead_status_id}
+                    onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))}
+                    options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))}
+                    emptyLabel="No status"
+                  />
+                ) : null}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                >
+                  {saving ? "Creating..." : "Create Lead"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {detailsOpen && selectedLead ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
           <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
             <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
               <div className="min-w-0 flex-1">
-                <div className="truncate text-lg font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
+                <div className="truncate text-lg font-semibold text-slate-950">{getLeadDisplayName(selectedLead)}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
                   <span>{selectedLead.phone || "No phone"}</span>
                   <span>{selectedLead.platform || "Unknown channel"}</span>
@@ -399,14 +511,38 @@ export function LeadsWorkspaceV2() {
               </button>
             </div>
 
-            <div className="max-h-[calc(92vh-82px)] overflow-y-auto px-5 py-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "conversations", label: "Conversation" },
+                  { key: "actions", label: "Actions" },
+                ].map((tab) => {
+                  const active = selectedLeadView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedLeadView(tab.key as LeadDetailsView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(92vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
+              {selectedLeadView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Lead Summary" description="Pipeline context, clinic handoff, and quick access to records.">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-950">{selectedLead.name || selectedLead.profile_name || `Lead #${selectedLead.id}`}</div>
-                        <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} | {selectedLead.platform || "Unknown channel"}</div>
+                  <Panel title="Profile" description="Current lead state, handoff timing, and record access.">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-950">{getLeadDisplayName(selectedLead)}</div>
+                        <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} {selectedLead.platform ? `• ${selectedLead.platform}` : ""}</div>
                       </div>
                       <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
                     </div>
@@ -428,11 +564,15 @@ export function LeadsWorkspaceV2() {
                       </Link>
                     </div>
                   </Panel>
+                </div>
+              ) : null}
 
-                  <Panel title="Conversation Snapshot" description="Conversations currently linked to this lead.">
+              {selectedLeadView === "conversations" ? (
+                <div className="space-y-5">
+                  <Panel title="Linked Threads" description="Conversation history currently attached to this lead.">
                     <div className="space-y-3">
                       {(selectedLead.conversations ?? []).map((conversation: Conversation) => (
-                        <div key={conversation.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
+                        <Link key={conversation.id} href={`/agent?conversation=${conversation.id}`} className="block rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-slate-300 hover:bg-white">
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-sm font-medium text-slate-900">Conversation #{conversation.id}</div>
                             <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
@@ -443,19 +583,21 @@ export function LeadsWorkspaceV2() {
                             <div>Converted: {formatLocalDateTime(conversation.converted_at)}</div>
                             <div>{formatRelativeDateLabel(conversation.last_message_time)}</div>
                           </div>
-                        </div>
+                        </Link>
                       ))}
                       {(selectedLead.conversations?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No conversations linked to this lead yet.</div> : null}
                     </div>
                   </Panel>
                 </div>
+              ) : null}
 
+              {selectedLeadView === "actions" ? (
                 <div className="space-y-5">
-                  <Panel title="Routing Actions" description="Assign the lead and move it through the workflow without leaving the list.">
+                  <Panel title="Actions" description="Review current ownership and handoff values, change what you need, then save once.">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                       <WorkflowSelect
-                        label="Assign To User"
-                        value={assignments[selectedLead.id]?.userId ?? ""}
+                        label="Assigned User"
+                        value={assignments[selectedLead.id]?.userId ?? (selectedLead.assignment_state?.user_id ? String(selectedLead.assignment_state.user_id) : "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
                             ...current,
@@ -466,11 +608,15 @@ export function LeadsWorkspaceV2() {
                             },
                           }))
                         }
-                        options={users.map((user) => ({ label: user.name, value: String(user.id) }))}
+                        options={[
+                          { label: "Next in queue", value: NEXT_QUEUE_OPTION },
+                          ...users.map((user) => ({ label: user.name, value: String(user.id) })),
+                        ]}
+                        emptyLabel="Unassigned"
                       />
                       <WorkflowSelect
-                        label="Assign To Clinic"
-                        value={assignments[selectedLead.id]?.clinicId ?? ""}
+                        label="Assigned Clinic"
+                        value={assignments[selectedLead.id]?.clinicId ?? (selectedLead.clinic_id ? String(selectedLead.clinic_id) : "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
                             ...current,
@@ -482,12 +628,13 @@ export function LeadsWorkspaceV2() {
                           }))
                         }
                         options={clinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))}
+                        emptyLabel="Unassigned"
                       />
                     </div>
 
                     <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] xl:grid-cols-1 xl:items-end">
                       <WorkflowSelect
-                        label="Update Lead Status"
+                        label="Lead Status"
                         value={assignments[selectedLead.id]?.leadStatusId ?? String(selectedLead.lead_status_id ?? "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
@@ -503,28 +650,27 @@ export function LeadsWorkspaceV2() {
                       />
                       <button
                         type="button"
-                        onClick={() => void updateLeadStatus(selectedLead.id)}
+                        onClick={() => void saveLeadActions(selectedLead.id)}
                         disabled={updatingLeadId === selectedLead.id || statuses.length === 0}
                         className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {updatingLeadId === selectedLead.id ? "Updating..." : "Save Status"}
+                        {updatingLeadId === selectedLead.id ? "Saving..." : "Save Changes"}
                       </button>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => void assignAgent(selectedLead.id)} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">
-                        Assign User
-                      </button>
-                      <button type="button" onClick={() => void assignNext(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
-                        Assign Next In Queue
-                      </button>
-                      <button type="button" onClick={() => void assignClinic(selectedLead.id)} className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700">
-                        Assign Clinic
+                    <div className="mt-5 border-t border-[var(--line)] pt-4">
+                      <button
+                        type="button"
+                        onClick={() => void deleteLead(selectedLead.id)}
+                        disabled={deletingLeadId === selectedLead.id}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingLeadId === selectedLead.id ? "Deleting..." : "Delete Lead"}
                       </button>
                     </div>
                   </Panel>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>

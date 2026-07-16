@@ -64,6 +64,12 @@ export const navGroups: NavGroup[] = [
         description: "Permissions and RBAC",
         permissions: ["view_any_role", "create_role", "update_role", "delete_role"],
       },
+      {
+        label: "Settings",
+        href: "/settings",
+        description: "Meta messaging credentials and webhook setup",
+        adminOnly: true,
+      },
     ],
   },
 ];

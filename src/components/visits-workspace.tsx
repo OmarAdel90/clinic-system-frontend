@@ -61,6 +61,8 @@ const initialCompleteForm: CompleteForm = {
   supplies_used: [],
 };
 
+type VisitDetailsView = "overview" | "edit" | "supplies" | "complete";
+
 function toSupplyLines(rows: SupplyForm[]): SupplyLine[] {
   return rows
     .filter((row) => row.sku.trim() && row.quantity.trim())
@@ -127,8 +129,11 @@ export function VisitsWorkspace() {
   const [userFilter, setUserFilter] = useState("all");
   const [selectedVisitId, setSelectedVisitId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedVisitView, setSelectedVisitView] = useState<VisitDetailsView>("overview");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -243,6 +248,8 @@ export function VisitsWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/visits/${selectedVisit.id}`, "PATCH", {
@@ -255,11 +262,11 @@ export function VisitsWorkspace() {
         visit_date: editForm.visit_date,
         status: editForm.status,
       });
-      setNotice(`Visit #${selectedVisit.id} updated successfully.`);
+      setDetailsNotice(`Visit #${selectedVisit.id} updated successfully.`);
       await load();
       setDetailsOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update visit.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update visit.");
     } finally {
       setSavingEdit(false);
     }
@@ -269,10 +276,12 @@ export function VisitsWorkspace() {
     setDeletingVisit(visitId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/visits/${visitId}`);
-      setNotice(`Visit #${visitId} deleted successfully.`);
+      setDetailsNotice(`Visit #${visitId} deleted successfully.`);
       if (selectedVisitId === visitId) {
         setSelectedVisitId(null);
         setEditForm(initialVisitForm);
@@ -280,7 +289,7 @@ export function VisitsWorkspace() {
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete visit.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete visit.");
     } finally {
       setDeletingVisit(null);
     }
@@ -290,14 +299,16 @@ export function VisitsWorkspace() {
     setActiveVisit(id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/visits/${id}/${action}`, "PATCH", {});
-      setNotice(`Visit ${action}ed successfully.`);
+      setDetailsNotice(`Visit ${action}ed successfully.`);
       await load();
       setDetailsOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Unable to ${action} visit.`);
+      setDetailsError(err instanceof Error ? err.message : `Unable to ${action} visit.`);
     } finally {
       setActiveVisit(null);
     }
@@ -308,6 +319,8 @@ export function VisitsWorkspace() {
     setActiveVisit(id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/visits/${id}/complete`, "POST", {
@@ -316,11 +329,11 @@ export function VisitsWorkspace() {
         body: payload.body || null,
         supplies_used: toSupplyLines(payload.supplies_used),
       });
-      setNotice("Visit completed successfully.");
+      setDetailsNotice("Visit completed successfully.");
       await load();
       setDetailsOpen(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete visit.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to complete visit.");
     } finally {
       setActiveVisit(null);
     }
@@ -363,6 +376,9 @@ export function VisitsWorkspace() {
 
   function openVisitDetails(visitId: number) {
     setSelectedVisitId(visitId);
+    setSelectedVisitView("overview");
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -526,10 +542,35 @@ export function VisitsWorkspace() {
               </button>
             </div>
 
-            <div className="max-h-[calc(92vh-82px)] overflow-y-auto px-5 py-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "edit", label: "Edit" },
+                  { key: "supplies", label: "Supplies" },
+                  { key: "complete", label: "Complete" },
+                ].map((tab) => {
+                  const active = selectedVisitView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedVisitView(tab.key as VisitDetailsView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(92vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
+              {selectedVisitView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Visit Summary" description="Operational summary for the selected visit.">
+                  <Panel title="Visit Summary" description="Core schedule, ownership, and status information.">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-slate-950">{selectedVisit.visit_number || `Visit #${selectedVisit.id}`}</div>
@@ -589,9 +630,11 @@ export function VisitsWorkspace() {
                     )}
                   </Panel>
                 </div>
+              ) : null}
 
+              {selectedVisitView === "edit" ? (
                 <div className="space-y-5">
-                  <Panel title="Edit Visit" description="Update the selected visit without leaving the operations board.">
+                  <Panel title="Visit Settings" description="Update the selected visit without leaving the operations board.">
                     <form className="space-y-4" onSubmit={handleUpdate}>
                       <div className="grid gap-4 md:grid-cols-2">
                         <WorkflowSelect label="Lead" value={editForm.lead_id} onChange={(value) => setEditForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: String(lead.id) }))} required />
@@ -631,8 +674,12 @@ export function VisitsWorkspace() {
                       </div>
                     </form>
                   </Panel>
+                </div>
+              ) : null}
 
-                  <Panel title="Reserved Supplies" description="Supplies currently reserved for this visit.">
+              {selectedVisitView === "supplies" ? (
+                <div className="space-y-5">
+                  <Panel title="Reserved Supplies" description="Supplies currently held for this visit.">
                     <div className="space-y-2">
                       {(selectedVisit.supplies_reserved ?? []).map((item, index) => (
                         <div key={`${selectedVisit.id}-reserved-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-slate-700">
@@ -643,14 +690,18 @@ export function VisitsWorkspace() {
                       {(selectedVisit.supplies_reserved?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No reserved supplies on this visit.</div> : null}
                     </div>
                   </Panel>
+                </div>
+              ) : null}
 
+              {selectedVisitView === "complete" ? (
+                <div className="space-y-5">
                   {selectedVisit.status === "confirmed" ? (
                     <Panel title="Complete Visit" description="Finish a confirmed visit and hand it into report and invoice generation.">
                       {(() => {
                         const completeForm = completeForms[selectedVisit.id] ?? initialCompleteForm;
                         return (
                           <div className="space-y-4">
-                            <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                               <WorkflowInput label="Diagnosis" name={`diagnosis-${selectedVisit.id}`} value={completeForm.diagnosis} onChange={(value) => setCompleteForms((state) => ({ ...state, [selectedVisit.id]: { ...completeForm, diagnosis: value } }))} />
                               <WorkflowInput label="Treatment Notes" name={`notes-${selectedVisit.id}`} value={completeForm.treatment_notes} onChange={(value) => setCompleteForms((state) => ({ ...state, [selectedVisit.id]: { ...completeForm, treatment_notes: value } }))} />
                               <WorkflowInput label="Summary" name={`body-${selectedVisit.id}`} value={completeForm.body} onChange={(value) => setCompleteForms((state) => ({ ...state, [selectedVisit.id]: { ...completeForm, body: value } }))} />
@@ -686,9 +737,13 @@ export function VisitsWorkspace() {
                         );
                       })()}
                     </Panel>
-                  ) : null}
+                  ) : (
+                    <Panel title="Complete Visit" description="Finish a confirmed visit and hand it into report and invoice generation.">
+                      <div className="text-sm text-slate-500">Only confirmed visits can be completed.</div>
+                    </Panel>
+                  )}
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>

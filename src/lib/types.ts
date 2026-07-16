@@ -46,6 +46,34 @@ export type NavItem = {
   href: string;
   description: string;
   permissions?: string[];
+  adminOnly?: boolean;
+};
+
+export type MetaFacebookInstagramSettings = {
+  facebook_page_id: string;
+  facebook_page_access_token: string;
+  instagram_access_token: string;
+  app_id: string;
+  app_secret: string;
+  verify_token: string;
+  api_version: string;
+  facebook_token_configured?: boolean;
+  instagram_token_configured?: boolean;
+};
+
+export type MetaWhatsappSettings = {
+  access_token: string;
+  phone_number_id: string;
+  waba_id: string;
+  verify_token: string;
+  api_version: string;
+  access_token_configured?: boolean;
+};
+
+export type MetaSettingsPayload = {
+  webhook_url: string;
+  facebook_instagram: MetaFacebookInstagramSettings;
+  whatsapp: MetaWhatsappSettings;
 };
 
 export type Lead = {

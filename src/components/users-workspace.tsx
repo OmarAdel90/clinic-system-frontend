@@ -122,6 +122,8 @@ export function UsersWorkspace() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -207,6 +209,8 @@ export function UsersWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       const originalForm = toForm(selectedUser);
@@ -251,10 +255,10 @@ export function UsersWorkspace() {
       }
 
       setUsers((current) => current.map((user) => (user.id === selectedUser.id ? { ...user, ...mergedUser } : user)));
-      setNotice(`User "${editForm.name}" updated successfully.`);
+      setDetailsNotice(`User "${editForm.name}" updated successfully.`);
       setEditForm(toForm(mergedUser));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update user.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update user.");
     } finally {
       setSavingEdit(false);
     }
@@ -264,17 +268,19 @@ export function UsersWorkspace() {
     setDeletingId(userId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/users/${userId}`);
-      setNotice(`User #${userId} deleted successfully.`);
+      setDetailsNotice(`User #${userId} deleted successfully.`);
       if (selectedId === userId) {
         setSelectedId(null);
         setDetailsOpen(false);
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete user.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete user.");
     } finally {
       setDeletingId(null);
     }
@@ -309,6 +315,8 @@ export function UsersWorkspace() {
 
   function openUserDetails(id: number) {
     setSelectedId(id);
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -418,6 +426,8 @@ export function UsersWorkspace() {
             </div>
 
             <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Status" value={(selectedUser.is_active ?? true) ? "Active" : "Inactive"} hint="Current account status." />
                 <StatCard label="Roles" value={(selectedUser.roles || []).length} hint="Assigned roles." />

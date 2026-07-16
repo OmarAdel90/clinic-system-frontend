@@ -17,6 +17,8 @@ type FeedbackForm = {
   feedback_body: string;
 };
 
+type FeedbackDetailsView = "overview" | "edit";
+
 const initialForm: FeedbackForm = {
   lead_id: "",
   clinic_id: "",
@@ -43,6 +45,8 @@ export function PatientFeedbackWorkspace() {
   const [editForm, setEditForm] = useState<FeedbackForm>(initialForm);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedView, setSelectedView] = useState<FeedbackDetailsView>("overview");
   const [loading, setLoading] = useState(true);
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -221,6 +225,12 @@ export function PatientFeedbackWorkspace() {
     }
   }
 
+  function openFeedbackDetails(id: number) {
+    setSelectedId(id);
+    setSelectedView("overview");
+    setDetailsOpen(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -250,7 +260,7 @@ export function PatientFeedbackWorkspace() {
             <div className="space-y-4">
               {filteredFeedback.map((row) => (
                 <div key={row.id} className={`rounded-xl border p-4 ${selectedFeedback?.id === row.id ? "border-slate-900 bg-white" : "border-[var(--line)] bg-[var(--surface)]"}`}>
-                  <button type="button" onClick={() => setSelectedId(row.id)} className="w-full text-left">
+                  <button type="button" onClick={() => openFeedbackDetails(row.id)} className="w-full text-left">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-slate-950">{row.lead?.name || row.lead?.profile_name || `Lead #${row.lead_id}`}</div>
@@ -284,35 +294,86 @@ export function PatientFeedbackWorkspace() {
               </button>
             </form>
           </Panel>
-
-          <Panel title="Selected Feedback" description="Review and update the selected patient feedback entry.">
-            {selectedFeedback ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                  <div className="text-sm font-semibold text-slate-950">{selectedFeedback.lead?.name || selectedFeedback.lead?.profile_name || `Lead #${selectedFeedback.lead_id}`}</div>
-                  <div className="mt-1 text-sm text-slate-600">{selectedFeedback.clinic?.name || `Clinic #${selectedFeedback.clinic_id}`}</div>
-                  <div className="mt-3 text-xs text-slate-500">Created {formatLocalDateTime(selectedFeedback.created_at)}</div>
-                </div>
-
-                <form className="space-y-4" onSubmit={updateFeedback}>
-                  <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={editClinicOptions} required allowEmpty={false} />
-                  <WorkflowTextarea label="Feedback Body" value={editForm.feedback_body} onChange={(value) => setEditForm((current) => ({ ...current, feedback_body: value }))} />
-                  <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
-                      {savingEdit ? "Saving..." : "Save Changes"}
-                    </button>
-                    <button type="button" onClick={() => void deleteFeedback(selectedFeedback.id)} disabled={deletingId === selectedFeedback.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                      {deletingId === selectedFeedback.id ? "Deleting..." : "Delete Feedback"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">Select a feedback item to review or edit it.</div>
-            )}
-          </Panel>
         </div>
       </div>
+
+      {detailsOpen && selectedFeedback ? (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/45 px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">{selectedFeedback.lead?.name || selectedFeedback.lead?.profile_name || `Lead #${selectedFeedback.lead_id}`}</div>
+                <div className="mt-1 text-sm text-slate-600">{selectedFeedback.clinic?.name || `Clinic #${selectedFeedback.clinic_id}`}</div>
+                <div className="mt-2 text-xs text-slate-500">Created {formatLocalDateTime(selectedFeedback.created_at)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailsOpen(false)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "edit", label: "Edit" },
+                ].map((tab) => {
+                  const active = selectedView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedView(tab.key as FeedbackDetailsView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
+              {selectedView === "overview" ? (
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard label="Lead" value={selectedFeedback.lead?.name || selectedFeedback.lead?.profile_name || `Lead #${selectedFeedback.lead_id}`} hint="Patient/lead tied to this feedback." />
+                    <StatCard label="Clinic" value={selectedFeedback.clinic?.name || `Clinic #${selectedFeedback.clinic_id}`} hint="Clinic context for the feedback." />
+                    <StatCard label="Created" value={selectedFeedback.created_at ? formatLocalDateTime(selectedFeedback.created_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Feedback creation time." />
+                    <StatCard label="Feedback Id" value={selectedFeedback.id} hint="Internal reference id." />
+                  </div>
+
+                  <Panel title="Feedback Body" description="Captured patient sentiment and comments.">
+                    <div className="text-sm leading-6 text-slate-700">{selectedFeedback.feedback_body || "No feedback body recorded."}</div>
+                  </Panel>
+                </div>
+              ) : null}
+
+              {selectedView === "edit" ? (
+                <div className="space-y-5">
+                  <Panel title="Edit Feedback" description="Update clinic context or revise the feedback body.">
+                    <form className="space-y-4" onSubmit={updateFeedback}>
+                      <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={editClinicOptions} required allowEmpty={false} />
+                      <WorkflowTextarea label="Feedback Body" value={editForm.feedback_body} onChange={(value) => setEditForm((current) => ({ ...current, feedback_body: value }))} />
+                      <div className="flex flex-wrap gap-3">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                          {savingEdit ? "Saving..." : "Save Changes"}
+                        </button>
+                        <button type="button" onClick={() => void deleteFeedback(selectedFeedback.id)} disabled={deletingId === selectedFeedback.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          {deletingId === selectedFeedback.id ? "Deleting..." : "Delete Feedback"}
+                        </button>
+                      </div>
+                    </form>
+                  </Panel>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

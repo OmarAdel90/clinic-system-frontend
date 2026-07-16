@@ -10,6 +10,11 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
 
+type AttributeRow = {
+  key: string;
+  value: string;
+};
+
 type PharmaceuticalForm = {
   SKU: string;
   name: string;
@@ -26,6 +31,11 @@ const initialForm: PharmaceuticalForm = {
   sale_price: "",
   description: "",
   attribute: "",
+};
+
+const initialAttributeRow: AttributeRow = {
+  key: "",
+  value: "",
 };
 
 function toForm(item?: Pharmaceutical | null): PharmaceuticalForm {
@@ -78,6 +88,43 @@ function parseAttribute(value: string) {
   return Object.fromEntries(entries);
 }
 
+function attributeRowsFromString(value: string): AttributeRow[] {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [initialAttributeRow];
+  }
+
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex <= 0) {
+        return {
+          key: line,
+          value: "",
+        };
+      }
+
+      return {
+        key: line.slice(0, separatorIndex).trim(),
+        value: line.slice(separatorIndex + 1).trim(),
+      };
+    });
+}
+
+function attributeStringFromRows(rows: AttributeRow[]) {
+  return rows
+    .map((row) => ({
+      key: row.key.trim(),
+      value: row.value.trim(),
+    }))
+    .filter((row) => row.key && row.value)
+    .map((row) => `${row.key}: ${row.value}`)
+    .join("\n");
+}
+
 export function PharmaceuticalsWorkspace() {
   const [items, setItems] = useState<Pharmaceutical[]>([]);
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
@@ -85,12 +132,16 @@ export function PharmaceuticalsWorkspace() {
   const [search, setSearch] = useState("");
   const [createForm, setCreateForm] = useState<PharmaceuticalForm>(initialForm);
   const [editForm, setEditForm] = useState<PharmaceuticalForm>(initialForm);
+  const [createAttributeRows, setCreateAttributeRows] = useState<AttributeRow[]>([initialAttributeRow]);
+  const [editAttributeRows, setEditAttributeRows] = useState<AttributeRow[]>([initialAttributeRow]);
   const [loading, setLoading] = useState(true);
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingSku, setDeletingSku] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -137,7 +188,9 @@ export function PharmaceuticalsWorkspace() {
   }, []);
 
   useEffect(() => {
-    setEditForm(toForm(selectedItem));
+    const nextForm = toForm(selectedItem);
+    setEditForm(nextForm);
+    setEditAttributeRows(attributeRowsFromString(nextForm.attribute));
   }, [selectedItem]);
 
   async function createItem(event: FormEvent<HTMLFormElement>) {
@@ -156,6 +209,7 @@ export function PharmaceuticalsWorkspace() {
         attribute: parseAttribute(createForm.attribute),
       });
       setCreateForm(initialForm);
+      setCreateAttributeRows([initialAttributeRow]);
       setNotice("Pharmaceutical created successfully.");
       await load();
     } catch (err) {
@@ -172,6 +226,8 @@ export function PharmaceuticalsWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/pharmaceuticals/${selectedItem.SKU}`, "PATCH", {
@@ -182,10 +238,10 @@ export function PharmaceuticalsWorkspace() {
         description: editForm.description || null,
         attribute: parseAttribute(editForm.attribute),
       });
-      setNotice(`Pharmaceutical "${editForm.name}" updated successfully.`);
+      setDetailsNotice(`Pharmaceutical "${editForm.name}" updated successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update pharmaceutical.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update pharmaceutical.");
     } finally {
       setSavingEdit(false);
     }
@@ -195,17 +251,19 @@ export function PharmaceuticalsWorkspace() {
     setDeletingSku(sku);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/pharmaceuticals/${sku}`);
-      setNotice(`Pharmaceutical ${sku} deleted successfully.`);
+      setDetailsNotice(`Pharmaceutical ${sku} deleted successfully.`);
       if (selectedSku === sku) {
         setSelectedSku(null);
         setDetailsOpen(false);
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete pharmaceutical.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete pharmaceutical.");
     } finally {
       setDeletingSku(null);
     }
@@ -213,7 +271,81 @@ export function PharmaceuticalsWorkspace() {
 
   function openItemDetails(sku: string) {
     setSelectedSku(sku);
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
+  }
+
+  function renderAttributeEditor(
+    form: PharmaceuticalForm,
+    setForm: (updater: (current: PharmaceuticalForm) => PharmaceuticalForm) => void,
+    rows: AttributeRow[],
+    setRows: (updater: (current: AttributeRow[]) => AttributeRow[]) => void,
+    prefix: string,
+  ) {
+    function syncRows(nextRows: AttributeRow[]) {
+      const normalizedRows = nextRows.length ? nextRows : [initialAttributeRow];
+      setRows(() => normalizedRows);
+      setForm((current) => ({
+        ...current,
+        attribute: attributeStringFromRows(normalizedRows),
+      }));
+    }
+
+    function updateRow(index: number, field: keyof AttributeRow, value: string) {
+      syncRows(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)));
+    }
+
+    function addRow() {
+      syncRows([...rows, initialAttributeRow]);
+    }
+
+    function removeRow(index: number) {
+      const nextRows = rows.filter((_, rowIndex) => rowIndex !== index);
+      syncRows(nextRows.length ? nextRows : [initialAttributeRow]);
+    }
+
+    return (
+      <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-950">Attributes</div>
+            <div className="text-xs text-slate-500">Add structured properties like dose, form, or pack size.</div>
+          </div>
+          <button type="button" onClick={addRow} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
+            Add Attribute
+          </button>
+        </div>
+
+        {rows.map((row, index) => (
+          <div key={`${prefix}-attribute-${index}`} className="grid gap-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]">
+            <WorkflowInput
+              label="Name"
+              name={`${prefix}-attribute-key-${index}`}
+              value={row.key}
+              onChange={(value) => updateRow(index, "key", value)}
+              placeholder="dose"
+            />
+            <WorkflowInput
+              label="Value"
+              name={`${prefix}-attribute-value-${index}`}
+              value={row.value}
+              onChange={(value) => updateRow(index, "value", value)}
+              placeholder="500mg"
+            />
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => removeRow(index)}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -277,11 +409,11 @@ export function PharmaceuticalsWorkspace() {
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowInput label="SKU" name="create-pharma-sku" value={createForm.SKU} onChange={(value) => setCreateForm((current) => ({ ...current, SKU: value }))} required />
                 <WorkflowInput label="Name" name="create-pharma-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
-                <WorkflowInput label="Arabic Name" name="create-pharma-arabic-name" value={createForm.arabic_name} onChange={(value) => setCreateForm((current) => ({ ...current, arabic_name: value }))} />
-                <WorkflowInput label="Sale Price" name="create-pharma-price" type="number" value={createForm.sale_price} onChange={(value) => setCreateForm((current) => ({ ...current, sale_price: value }))} required />
-              </div>
-              <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} />
-              <WorkflowTextarea label="Attributes" value={createForm.attribute} onChange={(value) => setCreateForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
+              <WorkflowInput label="Arabic Name" name="create-pharma-arabic-name" value={createForm.arabic_name} onChange={(value) => setCreateForm((current) => ({ ...current, arabic_name: value }))} />
+              <WorkflowInput label="Sale Price" name="create-pharma-price" type="number" value={createForm.sale_price} onChange={(value) => setCreateForm((current) => ({ ...current, sale_price: value }))} required />
+            </div>
+            <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} />
+              {renderAttributeEditor(createForm, setCreateForm, createAttributeRows, setCreateAttributeRows, "create-pharma")}
               <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Pharmaceutical"}
               </button>
@@ -309,6 +441,8 @@ export function PharmaceuticalsWorkspace() {
             </div>
 
             <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="SKU" value={selectedItem.SKU} hint="Catalog SKU." />
                 <StatCard label="Price" value={selectedItem.sale_price ?? 0} hint="Configured sale price." />
@@ -326,7 +460,7 @@ export function PharmaceuticalsWorkspace() {
                       <WorkflowInput label="Sale Price" name="edit-pharma-price" type="number" value={editForm.sale_price} onChange={(value) => setEditForm((current) => ({ ...current, sale_price: value }))} required />
                     </div>
                     <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
-                    <WorkflowTextarea label="Attributes" value={editForm.attribute} onChange={(value) => setEditForm((current) => ({ ...current, attribute: value }))} placeholder={"dose: 500mg\nform: tablet"} />
+                    {renderAttributeEditor(editForm, setEditForm, editAttributeRows, setEditAttributeRows, "edit-pharma")}
                     <div className="flex flex-wrap gap-3">
                       <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
@@ -336,6 +470,20 @@ export function PharmaceuticalsWorkspace() {
                       </button>
                     </div>
                   </form>
+                </Panel>
+
+                <Panel title="Current Attributes" description="Structured metadata currently stored on this catalog item.">
+                  {selectedItem.attribute && typeof selectedItem.attribute === "object" && !Array.isArray(selectedItem.attribute) ? (
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(selectedItem.attribute as Record<string, unknown>).map(([key, value]) => (
+                        <span key={key} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700">
+                          <span className="font-medium text-slate-900">{key}:</span> {String(value)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-slate-500">No attributes configured for this pharmaceutical.</div>
+                  )}
                 </Panel>
               </div>
             </div>

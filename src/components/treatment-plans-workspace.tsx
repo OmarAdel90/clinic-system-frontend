@@ -64,6 +64,8 @@ type SearchableOption = {
   value: string;
 };
 
+type TreatmentPlanView = "overview" | "visits" | "edit" | "add-visit" | "actions";
+
 const initialSupplyForm: SupplyForm = {
   sku: "",
   name: "",
@@ -314,6 +316,7 @@ export function TreatmentPlansWorkspace() {
   const [search, setSearch] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedPlanView, setSelectedPlanView] = useState<TreatmentPlanView>("overview");
   const [saving, setSaving] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [savingVisit, setSavingVisit] = useState(false);
@@ -987,6 +990,7 @@ export function TreatmentPlansWorkspace() {
 
   function openPlanDetails(planId: number) {
     setSelectedPlanId(planId);
+    setSelectedPlanView("overview");
     setDetailsOpen(true);
   }
 
@@ -1217,8 +1221,34 @@ export function TreatmentPlansWorkspace() {
               </button>
             </div>
 
-            <div className="max-h-[calc(92vh-82px)] overflow-y-auto px-5 py-5">
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "visits", label: "Visits" },
+                  { key: "edit", label: "Edit Plan" },
+                  { key: "add-visit", label: "Add Visit" },
+                  { key: "actions", label: "Actions" },
+                ].map((tab) => {
+                  const active = selectedPlanView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedPlanView(tab.key as TreatmentPlanView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(92vh-132px)] overflow-y-auto px-5 py-5">
+              {selectedPlanView === "overview" ? (
                 <div className="space-y-5">
                   <Panel title="Plan Summary" description="Keep the case context and timeline visible while you work the visit flow.">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1235,7 +1265,11 @@ export function TreatmentPlansWorkspace() {
                       <div>Completed Visits: {(selectedPlan.visits ?? []).filter((visit) => visit.status === "completed").length}</div>
                     </div>
                   </Panel>
+                </div>
+              ) : null}
 
+              {selectedPlanView === "visits" ? (
+                <div className="space-y-5">
                   <Panel title="Plan Visits" description="Visits now live inside the treatment plan workspace instead of being a separate detail flow.">
                     <div className="space-y-4">
                       {(selectedPlan.visits ?? []).map((visit, visitIndex) => {
@@ -1478,7 +1512,9 @@ export function TreatmentPlansWorkspace() {
                     </div>
                   </Panel>
                 </div>
+              ) : null}
 
+              {selectedPlanView === "edit" ? (
                 <div className="space-y-5">
                   <Panel title="Edit Plan" description="Reassign the plan owner, lead, clinic, and notes without leaving the case workspace.">
                     <form className="space-y-4" onSubmit={updateSelectedPlan}>
@@ -1523,7 +1559,11 @@ export function TreatmentPlansWorkspace() {
                       </button>
                     </form>
                   </Panel>
+                </div>
+              ) : null}
 
+              {selectedPlanView === "add-visit" ? (
+                <div className="space-y-5">
                   <Panel title="Add Visit To Plan" description="Schedule a new visit directly inside the selected treatment plan.">
                     <form className="space-y-4" onSubmit={createVisitForPlan}>
                       {addVisitError ? (
@@ -1619,7 +1659,11 @@ export function TreatmentPlansWorkspace() {
                       </button>
                     </form>
                   </Panel>
+                </div>
+              ) : null}
 
+              {selectedPlanView === "actions" ? (
+                <div className="space-y-5">
                   <Panel title="Plan Actions" description="Use destructive actions here so they stay separate from day-to-day visit work.">
                     <button
                       type="button"
@@ -1631,7 +1675,7 @@ export function TreatmentPlansWorkspace() {
                     </button>
                   </Panel>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>

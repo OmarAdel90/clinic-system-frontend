@@ -55,6 +55,13 @@ export function WorkflowSelect({
     setOpen(false);
   }
 
+  function openDropdown(resetQuery = false) {
+    if (resetQuery) {
+      setQuery("");
+    }
+    setOpen(true);
+  }
+
   return (
     <label className="block space-y-2">
       <span className="text-sm font-medium text-slate-700">{label}</span>
@@ -81,7 +88,9 @@ export function WorkflowSelect({
               onChange(exact.value);
             }
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            openDropdown(true);
+          }}
           onBlur={() => {
             window.setTimeout(() => {
               setOpen(false);
@@ -97,8 +106,20 @@ export function WorkflowSelect({
             }, 120);
           }}
           placeholder={allowEmpty ? emptyLabel : "Search"}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-5 text-slate-900 outline-none transition focus:border-slate-400"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm leading-5 text-slate-900 outline-none transition focus:border-slate-400"
         />
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={`Open ${label} options`}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => openDropdown(true)}
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-600"
+        >
+          <svg viewBox="0 0 20 20" fill="none" className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} aria-hidden="true">
+            <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
         {open ? (
           <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
             {filteredOptions.length > 0 ? (

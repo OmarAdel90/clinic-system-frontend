@@ -68,6 +68,8 @@ export function RolesWorkspace() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredRoles = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -165,6 +167,8 @@ export function RolesWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson<Role>(`/roles/${selectedRole.id}`, "PATCH", {
@@ -173,10 +177,10 @@ export function RolesWorkspace() {
       await mutateJson<Role>(`/roles/${selectedRole.id}/permissions`, "PATCH", {
         permissions: editForm.permissions,
       });
-      setNotice(`Role "${editForm.name}" updated successfully.`);
+      setDetailsNotice(`Role "${editForm.name}" updated successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update role.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update role.");
     } finally {
       setSavingEdit(false);
     }
@@ -186,17 +190,19 @@ export function RolesWorkspace() {
     setDeletingId(roleId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/roles/${roleId}`);
-      setNotice(`Role #${roleId} deleted successfully.`);
+      setDetailsNotice(`Role #${roleId} deleted successfully.`);
       if (selectedId === roleId) {
         setSelectedId(null);
         setDetailsOpen(false);
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete role.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete role.");
     } finally {
       setDeletingId(null);
     }
@@ -237,6 +243,8 @@ export function RolesWorkspace() {
 
   function openRoleDetails(id: number) {
     setSelectedId(id);
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -324,6 +332,8 @@ export function RolesWorkspace() {
             </div>
 
             <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Role" value={selectedRole.name} hint="Role bundle name." />
                 <StatCard label="Permissions" value={(selectedRole.permissions || []).length} hint="Assigned permissions." />

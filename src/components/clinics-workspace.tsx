@@ -139,6 +139,8 @@ export function ClinicsWorkspace() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredClinics = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -257,13 +259,15 @@ export function ClinicsWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson<Clinic>(`/clinics/${selectedClinic.id}`, "PATCH", buildClinicPayload(editForm, true));
-      setNotice(`Clinic "${editForm.name}" updated successfully.`);
+      setDetailsNotice(`Clinic "${editForm.name}" updated successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update clinic.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update clinic.");
     } finally {
       setSavingEdit(false);
     }
@@ -273,17 +277,19 @@ export function ClinicsWorkspace() {
     setDeletingId(clinicId);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/clinics/${clinicId}`);
-      setNotice(`Clinic #${clinicId} deleted successfully.`);
+      setDetailsNotice(`Clinic #${clinicId} deleted successfully.`);
       if (selectedId === clinicId) {
         setSelectedId(null);
         setDetailsOpen(false);
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete clinic.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete clinic.");
     } finally {
       setDeletingId(null);
     }
@@ -383,6 +389,8 @@ export function ClinicsWorkspace() {
 
   function openClinicDetails(id: number) {
     setSelectedId(id);
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -492,6 +500,8 @@ export function ClinicsWorkspace() {
             </div>
 
             <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Doctors" value={selectedClinic.doctors?.length ?? 0} hint="Assigned doctor user ids." />
                 <StatCard label="Departments" value={selectedClinic.departments?.length ?? 0} hint="Configured departments." />

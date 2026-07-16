@@ -8,6 +8,8 @@ import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+
+type WarehouseDetailsView = "overview" | "inventory" | "demand" | "settings";
 import { formatLocalDateTime } from "@/lib/time";
 
 type InventoryPressure = {
@@ -56,12 +58,15 @@ export function WarehousesWorkspace() {
   const [clinicFilter, setClinicFilter] = useState("all");
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedWarehouseView, setSelectedWarehouseView] = useState<WarehouseDetailsView>("overview");
   const [loading, setLoading] = useState(true);
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredWarehouses = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -223,16 +228,18 @@ export function WarehousesWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/warehouses/${selectedWarehouse.id}`, "PATCH", {
         name: editForm.name,
         clinic_id: Number(editForm.clinic_id),
       });
-      setNotice(`Warehouse "${editForm.name}" updated successfully.`);
+      setDetailsNotice(`Warehouse "${editForm.name}" updated successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update warehouse.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update warehouse.");
     } finally {
       setSavingEdit(false);
     }
@@ -242,17 +249,19 @@ export function WarehousesWorkspace() {
     setDeletingId(id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/warehouses/${id}`);
-      setNotice(`Warehouse #${id} deleted successfully.`);
+      setDetailsNotice(`Warehouse #${id} deleted successfully.`);
       if (selectedWarehouseId === id) {
         setSelectedWarehouseId(null);
         setDetailsOpen(false);
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete warehouse.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete warehouse.");
     } finally {
       setDeletingId(null);
     }
@@ -260,6 +269,9 @@ export function WarehousesWorkspace() {
 
   function openWarehouseDetails(id: number) {
     setSelectedWarehouseId(id);
+    setSelectedWarehouseView("overview");
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -353,16 +365,54 @@ export function WarehousesWorkspace() {
               </button>
             </div>
 
-            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-5 py-5">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Inventory Lines" value={selectedWarehouse.inventories?.length ?? 0} hint="Tracked SKUs on this warehouse." />
-                <StatCard label="Reserved Units" value={(selectedWarehouse.inventories ?? []).reduce((sum, item) => sum + Number(item.reserved_quantity ?? 0), 0)} hint="Units already reserved." />
-                <StatCard label="Related Visits" value={relatedVisits.length} hint="Visits tied to this clinic." />
-                <StatCard label="Treatment Plans" value={relatedPlans.length} hint="Plans tied to this clinic." />
+            <div className="border-b border-[var(--line)] px-5 py-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "inventory", label: "Stock" },
+                  { key: "demand", label: "Links" },
+                  { key: "settings", label: "Settings" },
+                ].map((tab) => {
+                  const active = selectedWarehouseView === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setSelectedWarehouseView(tab.key as WarehouseDetailsView)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"}`}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div className="mt-5 space-y-5">
-                <Panel title="Warehouse Details" description="Rename the warehouse or move it between eligible clinics.">
+            <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
+              {selectedWarehouseView === "overview" ? (
+                <div className="space-y-5">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard label="Inventory Lines" value={selectedWarehouse.inventories?.length ?? 0} hint="Tracked SKUs on this warehouse." />
+                    <StatCard label="Reserved Units" value={(selectedWarehouse.inventories ?? []).reduce((sum, item) => sum + Number(item.reserved_quantity ?? 0), 0)} hint="Units already reserved." />
+                    <StatCard label="Related Visits" value={relatedVisits.length} hint="Visits tied to this clinic." />
+                    <StatCard label="Treatment Plans" value={relatedPlans.length} hint="Plans tied to this clinic." />
+                  </div>
+                  <Panel title="Warehouse Profile" description="Quick reference for the linked clinic and current warehouse role.">
+                    <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
+                      <div>Name: {selectedWarehouse.name}</div>
+                      <div>Clinic: {selectedWarehouse.clinic?.name || "Not linked"}</div>
+                      <div>Inventory rows: {selectedWarehouse.inventories?.length ?? 0}</div>
+                      <div>Low-stock threshold: 25 units</div>
+                    </div>
+                  </Panel>
+                </div>
+              ) : null}
+
+              {selectedWarehouseView === "settings" ? (
+                <div className="space-y-5">
+                <Panel title="Warehouse Settings" description="Rename the warehouse or move it between eligible clinics.">
                   <form className="space-y-4" onSubmit={updateWarehouse}>
                     <WorkflowInput label="Warehouse Name" name="edit-warehouse-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
                     <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
@@ -376,8 +426,12 @@ export function WarehousesWorkspace() {
                     </div>
                   </form>
                 </Panel>
+                </div>
+              ) : null}
 
-                <Panel title="Inventory Pressure" description="Available versus reserved stock for the selected warehouse.">
+              {selectedWarehouseView === "inventory" ? (
+                <div className="space-y-5">
+                <Panel title="Stock Health" description="Available versus reserved stock for the selected warehouse.">
                   <div className="space-y-3">
                     {pressureRows.map((row) => (
                       <div key={row.sku} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -405,8 +459,12 @@ export function WarehousesWorkspace() {
                     {pressureRows.length === 0 ? <div className="text-sm text-slate-500">No inventory rows on this warehouse yet.</div> : null}
                   </div>
                 </Panel>
+                </div>
+              ) : null}
 
-                <Panel title="Clinic Demand Context" description="Visits and treatment plans currently putting pressure on the selected warehouse.">
+              {selectedWarehouseView === "demand" ? (
+                <div className="space-y-5">
+                <Panel title="Linked Work" description="Visits and treatment plans currently drawing against this warehouse.">
                   <div className="space-y-4">
                     <div className="rounded-xl border border-[var(--line)] bg-white p-4">
                       <div className="text-sm font-semibold text-slate-950">Related Visits</div>
@@ -414,11 +472,11 @@ export function WarehousesWorkspace() {
                         {relatedVisits.slice(0, 6).map((visit) => (
                           <div key={visit.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-medium text-slate-900">{visit.visit_number || `Visit #${visit.id}`}</div>
+                              <div className="text-sm font-medium text-slate-900">{visit.lead?.name || visit.lead?.profile_name || `Lead #${visit.lead_id}`}</div>
                               <div className="text-xs text-slate-500">{visit.status || "-"}</div>
                             </div>
                             <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                              <div>{visit.lead?.name || visit.lead?.profile_name || `Lead #${visit.lead_id}`}</div>
+                              <div>{visit.visit_number || `Visit #${visit.id}`}</div>
                               <div>{formatLocalDateTime(visit.scheduled_date || visit.visit_date)}</div>
                             </div>
                           </div>
@@ -433,11 +491,11 @@ export function WarehousesWorkspace() {
                         {relatedPlans.slice(0, 6).map((plan) => (
                           <div key={plan.id} className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3">
                             <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-medium text-slate-900">Plan #{plan.id}</div>
+                              <div className="text-sm font-medium text-slate-900">{plan.lead?.name || plan.lead?.profile_name || `Lead #${plan.lead_id}`}</div>
                               <div className="text-xs text-slate-500">{plan.status || "-"}</div>
                             </div>
                             <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                              <div>{plan.lead?.name || plan.lead?.profile_name || `Lead #${plan.lead_id}`}</div>
+                              <div>Plan #{plan.id}</div>
                               <div>{plan.total_visits ?? 0} planned visits</div>
                             </div>
                           </div>
@@ -447,7 +505,8 @@ export function WarehousesWorkspace() {
                     </div>
                   </div>
                 </Panel>
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
