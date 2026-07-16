@@ -12,6 +12,7 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type MedicalRecordView = "overview" | "file" | "edit";
 
@@ -28,6 +29,7 @@ const initialForm: MedicalRecordForm = {
   notes: "",
   file: null,
 };
+const MEDICAL_RECORDS_PAGE_SIZE = 10;
 
 function toForm(record?: MedicalRecord | null): MedicalRecordForm {
   if (!record) {
@@ -102,6 +104,7 @@ export function MedicalRecordsWorkspace() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [recordPage, setRecordPage] = useState(1);
 
   const filteredRecords = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -116,6 +119,12 @@ export function MedicalRecordsWorkspace() {
       );
     });
   }, [leads, records, search]);
+
+  const recordTotalPages = Math.max(1, Math.ceil(filteredRecords.length / MEDICAL_RECORDS_PAGE_SIZE));
+  const paginatedRecords = useMemo(
+    () => filteredRecords.slice((recordPage - 1) * MEDICAL_RECORDS_PAGE_SIZE, recordPage * MEDICAL_RECORDS_PAGE_SIZE),
+    [filteredRecords, recordPage],
+  );
 
   const selectedRecord = useMemo(() => records.find((record) => record.id === selectedRecordId) ?? null, [records, selectedRecordId]);
 
@@ -178,6 +187,16 @@ export function MedicalRecordsWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedRecord));
   }, [selectedRecord]);
+
+  useEffect(() => {
+    setRecordPage(1);
+  }, [search, selectedLeadId]);
+
+  useEffect(() => {
+    if (recordPage > recordTotalPages) {
+      setRecordPage(recordTotalPages);
+    }
+  }, [recordPage, recordTotalPages]);
 
   function syncRecord(updatedRecord: MedicalRecord) {
     setRecords((current) => {
@@ -332,7 +351,7 @@ export function MedicalRecordsWorkspace() {
             <div className="text-sm text-slate-500">Loading medical records...</div>
           ) : (
             <div className="space-y-3">
-              {filteredRecords.map((record) => {
+              {paginatedRecords.map((record) => {
                 const active = selectedRecord?.id === record.id;
                 return (
                   <button
@@ -357,6 +376,7 @@ export function MedicalRecordsWorkspace() {
                 );
               })}
               {filteredRecords.length === 0 ? <div className="text-sm text-slate-500">No medical records found for this lead.</div> : null}
+              <PaginationControls page={recordPage} totalPages={recordTotalPages} totalItems={filteredRecords.length} pageSize={MEDICAL_RECORDS_PAGE_SIZE} itemLabel="medical records" onPageChange={setRecordPage} />
             </div>
           )}
         </Panel>

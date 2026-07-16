@@ -10,8 +10,11 @@ import { StatusBadge } from "@/components/status-badge";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type InvoiceDetailsView = "overview" | "report" | "payment";
+
+const INVOICES_PAGE_SIZE = 10;
 
 export function InvoicesWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -27,6 +30,7 @@ export function InvoicesWorkspace() {
   const [activeInvoice, setActiveInvoice] = useState<number | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const [invoicePage, setInvoicePage] = useState(1);
 
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -48,6 +52,11 @@ export function InvoicesWorkspace() {
     () => filteredInvoices.find((invoice) => invoice.id === selectedInvoiceId) ?? invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? filteredInvoices[0] ?? invoices[0] ?? null,
     [filteredInvoices, invoices, selectedInvoiceId],
   );
+  const invoiceTotalPages = Math.max(1, Math.ceil(filteredInvoices.length / INVOICES_PAGE_SIZE));
+  const paginatedInvoices = useMemo(() => {
+    const start = (invoicePage - 1) * INVOICES_PAGE_SIZE;
+    return filteredInvoices.slice(start, start + INVOICES_PAGE_SIZE);
+  }, [filteredInvoices, invoicePage]);
 
   const stats = useMemo(() => ({
     total: invoices.length,
@@ -75,6 +84,16 @@ export function InvoicesWorkspace() {
       void load();
     });
   }, []);
+
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (invoicePage > invoiceTotalPages) {
+      setInvoicePage(invoiceTotalPages);
+    }
+  }, [invoicePage, invoiceTotalPages]);
 
   async function submitPayment(event: FormEvent<HTMLFormElement>, invoiceId: number) {
     event.preventDefault();
@@ -144,7 +163,7 @@ export function InvoicesWorkspace() {
             <div className="text-sm text-slate-500">Loading invoices...</div>
           ) : (
             <div className="space-y-4">
-              {filteredInvoices.map((invoice) => (
+              {paginatedInvoices.map((invoice) => (
                 <div key={invoice.id} className={`grid gap-4 rounded-xl border p-4 lg:grid-cols-[1fr_auto] ${selectedInvoice?.id === invoice.id ? "border-slate-900 bg-white" : "border-[var(--line)] bg-[var(--surface)]"}`}>
                   <button type="button" onClick={() => openInvoiceDetails(invoice.id)} className="text-left">
                     <div className="flex flex-wrap items-center gap-3">
@@ -186,6 +205,7 @@ export function InvoicesWorkspace() {
               ))}
 
               {filteredInvoices.length === 0 ? <div className="text-sm text-slate-500">No invoices match the current filters.</div> : null}
+              <PaginationControls page={invoicePage} totalPages={invoiceTotalPages} totalItems={filteredInvoices.length} pageSize={INVOICES_PAGE_SIZE} itemLabel="invoices" onPageChange={setInvoicePage} />
             </div>
           )}
         </Panel>

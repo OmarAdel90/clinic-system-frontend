@@ -53,12 +53,16 @@ export type MetaFacebookInstagramSettings = {
   facebook_page_id: string;
   facebook_page_access_token: string;
   instagram_access_token: string;
+  ads_access_token: string;
+  selected_ad_account_id: string;
+  available_ad_accounts?: MetaAdAccount[];
   app_id: string;
   app_secret: string;
   verify_token: string;
   api_version: string;
   facebook_token_configured?: boolean;
   instagram_token_configured?: boolean;
+  ads_token_configured?: boolean;
 };
 
 export type MetaWhatsappSettings = {
@@ -76,12 +80,50 @@ export type MetaSettingsPayload = {
   whatsapp: MetaWhatsappSettings;
 };
 
+export type MetaAdAccount = {
+  id: string;
+  name: string;
+  currency?: string | null;
+  account_status?: string | number | null;
+};
+
+export type MetaCampaignAdSet = {
+  id: string;
+  name: string;
+  status?: string | null;
+  optimization_goal?: string | null;
+  budget?: number | null;
+};
+
+export type MetaAvailableCampaign = {
+  id: string;
+  name: string;
+  ad_account_id?: string | null;
+  ad_account_name?: string | null;
+  platform?: string | null;
+  status?: string | null;
+  objective?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  budget?: number | null;
+  currency?: string | null;
+  spend?: number | null;
+  impressions?: number | null;
+  clicks?: number | null;
+  ctr?: number | null;
+  cpc?: number | null;
+  results?: number | null;
+  result_label?: string | null;
+  ad_sets?: MetaCampaignAdSet[] | null;
+  imported?: boolean;
+};
+
 export type Lead = {
   id: number;
   name?: string | null;
   phone?: string | null;
   platform?: string | null;
-  campaign_id?: number | null;
+  campaign_id?: string | number | null;
   clinic_id?: number | null;
   clinic_assigned_at?: string | null;
   lead_status_id?: number | null;
@@ -143,9 +185,13 @@ export type MessageRecord = {
   direction?: string | null;
   media_url?: string | null;
   media_caption?: string | null;
+  media_mime?: string | null;
+  media_size?: string | number | null;
   status?: string | null;
   sent_at?: string | null;
   created_at?: string | null;
+  failed_at?: string | null;
+  error_message?: string | null;
   user?: User | null;
 };
 
@@ -216,8 +262,10 @@ export type Clinic = {
 };
 
 export type Campaign = {
-  id: number;
+  id: string | number;
   name: string;
+  ad_account_id?: string | null;
+  ad_account_name?: string | null;
   platform?: string | null;
   description?: string | null;
   start_date?: string | null;
@@ -225,6 +273,17 @@ export type Campaign = {
   budget?: number | null;
   currency?: string | null;
   status?: string | null;
+  objective?: string | null;
+  meta_source?: string | null;
+  spend?: number | null;
+  impressions?: number | null;
+  clicks?: number | null;
+  ctr?: number | null;
+  cpc?: number | null;
+  results?: number | null;
+  result_label?: string | null;
+  ad_sets?: MetaCampaignAdSet[] | null;
+  metrics_synced_at?: string | null;
 };
 
 export type LeadStatus = {

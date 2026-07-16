@@ -10,6 +10,7 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type FeedbackForm = {
   lead_id: string;
@@ -24,6 +25,7 @@ const initialForm: FeedbackForm = {
   clinic_id: "",
   feedback_body: "",
 };
+const FEEDBACK_PAGE_SIZE = 10;
 
 function toForm(feedback?: PatientFeedback | null): FeedbackForm {
   if (!feedback) {
@@ -53,6 +55,7 @@ export function PatientFeedbackWorkspace() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [feedbackPage, setFeedbackPage] = useState(1);
 
   const filteredFeedback = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -68,6 +71,12 @@ export function PatientFeedbackWorkspace() {
       );
     });
   }, [feedbackRows, search]);
+
+  const feedbackTotalPages = Math.max(1, Math.ceil(filteredFeedback.length / FEEDBACK_PAGE_SIZE));
+  const paginatedFeedback = useMemo(
+    () => filteredFeedback.slice((feedbackPage - 1) * FEEDBACK_PAGE_SIZE, feedbackPage * FEEDBACK_PAGE_SIZE),
+    [feedbackPage, filteredFeedback],
+  );
 
   const selectedFeedback = useMemo(
     () => filteredFeedback.find((row) => row.id === selectedId) ?? feedbackRows.find((row) => row.id === selectedId) ?? filteredFeedback[0] ?? feedbackRows[0] ?? null,
@@ -147,6 +156,16 @@ export function PatientFeedbackWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedFeedback));
   }, [selectedFeedback]);
+
+  useEffect(() => {
+    setFeedbackPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (feedbackPage > feedbackTotalPages) {
+      setFeedbackPage(feedbackTotalPages);
+    }
+  }, [feedbackPage, feedbackTotalPages]);
 
   useEffect(() => {
     if (selectedCreateLead?.clinic_id) {
@@ -258,7 +277,7 @@ export function PatientFeedbackWorkspace() {
             <div className="text-sm text-slate-500">Loading patient feedback...</div>
           ) : (
             <div className="space-y-4">
-              {filteredFeedback.map((row) => (
+              {paginatedFeedback.map((row) => (
                 <div key={row.id} className={`rounded-xl border p-4 ${selectedFeedback?.id === row.id ? "border-slate-900 bg-white" : "border-[var(--line)] bg-[var(--surface)]"}`}>
                   <button type="button" onClick={() => openFeedbackDetails(row.id)} className="w-full text-left">
                     <div className="flex items-center justify-between gap-3">
@@ -274,6 +293,7 @@ export function PatientFeedbackWorkspace() {
                 </div>
               ))}
               {filteredFeedback.length === 0 ? <div className="text-sm text-slate-500">No patient feedback matches the current search.</div> : null}
+              <PaginationControls page={feedbackPage} totalPages={feedbackTotalPages} totalItems={filteredFeedback.length} pageSize={FEEDBACK_PAGE_SIZE} itemLabel="feedback entries" onPageChange={setFeedbackPage} />
             </div>
           )}
         </Panel>

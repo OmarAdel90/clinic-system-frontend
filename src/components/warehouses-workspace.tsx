@@ -8,9 +8,11 @@ import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type WarehouseDetailsView = "overview" | "inventory" | "demand" | "settings";
 import { formatLocalDateTime } from "@/lib/time";
+const WAREHOUSES_PAGE_SIZE = 10;
 
 type InventoryPressure = {
   sku: string;
@@ -67,6 +69,7 @@ export function WarehousesWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const [warehousePage, setWarehousePage] = useState(1);
 
   const filteredWarehouses = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -82,6 +85,12 @@ export function WarehousesWorkspace() {
       return matchesSearch && matchesClinic;
     });
   }, [clinicFilter, search, warehouses]);
+
+  const warehouseTotalPages = Math.max(1, Math.ceil(filteredWarehouses.length / WAREHOUSES_PAGE_SIZE));
+  const paginatedWarehouses = useMemo(
+    () => filteredWarehouses.slice((warehousePage - 1) * WAREHOUSES_PAGE_SIZE, warehousePage * WAREHOUSES_PAGE_SIZE),
+    [filteredWarehouses, warehousePage],
+  );
 
   const selectedWarehouse = useMemo(
     () => warehouses.find((warehouse) => warehouse.id === selectedWarehouseId) ?? null,
@@ -200,6 +209,16 @@ export function WarehousesWorkspace() {
     });
   }, [selectedWarehouse]);
 
+  useEffect(() => {
+    setWarehousePage(1);
+  }, [search, clinicFilter]);
+
+  useEffect(() => {
+    if (warehousePage > warehouseTotalPages) {
+      setWarehousePage(warehouseTotalPages);
+    }
+  }, [warehousePage, warehouseTotalPages]);
+
   async function createWarehouse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingCreate(true);
@@ -310,7 +329,7 @@ export function WarehousesWorkspace() {
             <div className="text-sm text-slate-500">Loading warehouses...</div>
           ) : (
             <div className="space-y-4">
-              {filteredWarehouses.map((warehouse) => {
+              {paginatedWarehouses.map((warehouse) => {
                 const inventoryCount = warehouse.inventories?.length ?? 0;
                 const reservedUnits = (warehouse.inventories ?? []).reduce((sum, item) => sum + Number(item.reserved_quantity ?? 0), 0);
                 return (
@@ -330,6 +349,7 @@ export function WarehousesWorkspace() {
                 );
               })}
               {filteredWarehouses.length === 0 ? <div className="text-sm text-slate-500">No warehouses match the current filters.</div> : null}
+              <PaginationControls page={warehousePage} totalPages={warehouseTotalPages} totalItems={filteredWarehouses.length} pageSize={WAREHOUSES_PAGE_SIZE} itemLabel="warehouses" onPageChange={setWarehousePage} />
             </div>
           )}
         </Panel>

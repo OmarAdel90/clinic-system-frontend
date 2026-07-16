@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type RoleForm = {
   name: string;
@@ -18,6 +19,8 @@ const initialForm: RoleForm = {
   name: "",
   permissions: [],
 };
+
+const ROLES_PAGE_SIZE = 10;
 
 function formatPermissionLabel(value: string) {
   return value
@@ -70,6 +73,7 @@ export function RolesWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const [rolePage, setRolePage] = useState(1);
 
   const filteredRoles = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -98,6 +102,11 @@ export function RolesWorkspace() {
   }, [permissionSearch, permissions]);
 
   const selectedRole = useMemo(() => roles.find((role) => role.id === selectedId) ?? null, [roles, selectedId]);
+  const roleTotalPages = Math.max(1, Math.ceil(filteredRoles.length / ROLES_PAGE_SIZE));
+  const paginatedRoles = useMemo(() => {
+    const start = (rolePage - 1) * ROLES_PAGE_SIZE;
+    return filteredRoles.slice(start, start + ROLES_PAGE_SIZE);
+  }, [filteredRoles, rolePage]);
 
   const stats = useMemo(
     () => ({
@@ -136,6 +145,16 @@ export function RolesWorkspace() {
   useEffect(() => {
     setEditForm(toForm(selectedRole));
   }, [selectedRole]);
+
+  useEffect(() => {
+    setRolePage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (rolePage > roleTotalPages) {
+      setRolePage(roleTotalPages);
+    }
+  }, [rolePage, roleTotalPages]);
 
   async function createRole(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -275,7 +294,7 @@ export function RolesWorkspace() {
             <div className="text-sm text-slate-500">Loading roles...</div>
           ) : (
             <div className="space-y-3">
-              {filteredRoles.map((role) => {
+              {paginatedRoles.map((role) => {
                 const active = selectedRole?.id === role.id;
                 return (
                   <button
@@ -296,6 +315,14 @@ export function RolesWorkspace() {
                   </button>
                 );
               })}
+              <PaginationControls
+                page={rolePage}
+                totalPages={roleTotalPages}
+                totalItems={filteredRoles.length}
+                pageSize={ROLES_PAGE_SIZE}
+                itemLabel="roles"
+                onPageChange={setRolePage}
+              />
             </div>
           )}
         </Panel>

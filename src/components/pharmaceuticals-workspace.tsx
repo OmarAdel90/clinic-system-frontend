@@ -9,6 +9,7 @@ import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type AttributeRow = {
   key: string;
@@ -37,6 +38,7 @@ const initialAttributeRow: AttributeRow = {
   key: "",
   value: "",
 };
+const PHARMACEUTICALS_PAGE_SIZE = 12;
 
 function toForm(item?: Pharmaceutical | null): PharmaceuticalForm {
   if (!item) {
@@ -142,6 +144,7 @@ export function PharmaceuticalsWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const [itemPage, setItemPage] = useState(1);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -156,6 +159,12 @@ export function PharmaceuticalsWorkspace() {
         .some((value) => String(value).toLowerCase().includes(term));
     });
   }, [items, search]);
+
+  const itemTotalPages = Math.max(1, Math.ceil(filteredItems.length / PHARMACEUTICALS_PAGE_SIZE));
+  const paginatedItems = useMemo(
+    () => filteredItems.slice((itemPage - 1) * PHARMACEUTICALS_PAGE_SIZE, itemPage * PHARMACEUTICALS_PAGE_SIZE),
+    [filteredItems, itemPage],
+  );
 
   const selectedItem = useMemo(() => items.find((item) => item.SKU === selectedSku) ?? null, [items, selectedSku]);
 
@@ -192,6 +201,16 @@ export function PharmaceuticalsWorkspace() {
     setEditForm(nextForm);
     setEditAttributeRows(attributeRowsFromString(nextForm.attribute));
   }, [selectedItem]);
+
+  useEffect(() => {
+    setItemPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (itemPage > itemTotalPages) {
+      setItemPage(itemTotalPages);
+    }
+  }, [itemPage, itemTotalPages]);
 
   async function createItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -375,7 +394,7 @@ export function PharmaceuticalsWorkspace() {
             <div className="text-sm text-slate-500">Loading pharmaceuticals...</div>
           ) : (
             <div className="space-y-3">
-              {filteredItems.map((item) => {
+              {paginatedItems.map((item) => {
                 const active = selectedItem?.SKU === item.SKU;
                 return (
                   <button
@@ -399,6 +418,7 @@ export function PharmaceuticalsWorkspace() {
                   </button>
                 );
               })}
+              <PaginationControls page={itemPage} totalPages={itemTotalPages} totalItems={filteredItems.length} pageSize={PHARMACEUTICALS_PAGE_SIZE} itemLabel="pharmaceuticals" onPageChange={setItemPage} />
             </div>
           )}
         </Panel>

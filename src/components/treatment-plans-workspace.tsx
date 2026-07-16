@@ -11,6 +11,7 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type SupplyForm = {
   sku: string;
@@ -65,6 +66,8 @@ type SearchableOption = {
 };
 
 type TreatmentPlanView = "overview" | "visits" | "edit" | "add-visit" | "actions";
+const TREATMENT_PLANS_PAGE_SIZE = 8;
+const PLAN_VISITS_PAGE_SIZE = 4;
 
 const initialSupplyForm: SupplyForm = {
   sku: "",
@@ -330,6 +333,10 @@ export function TreatmentPlansWorkspace() {
   const [planEditError, setPlanEditError] = useState<string | null>(null);
   const [addVisitError, setAddVisitError] = useState<string | null>(null);
   const [visitEditErrors, setVisitEditErrors] = useState<Record<number, string | null>>({});
+  const [planPage, setPlanPage] = useState(1);
+  const [planVisitPage, setPlanVisitPage] = useState(1);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
 
   const filteredPlans = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -346,6 +353,11 @@ export function TreatmentPlansWorkspace() {
       );
     });
   }, [plans, search]);
+  const planTotalPages = Math.max(1, Math.ceil(filteredPlans.length / TREATMENT_PLANS_PAGE_SIZE));
+  const paginatedPlans = useMemo(
+    () => filteredPlans.slice((planPage - 1) * TREATMENT_PLANS_PAGE_SIZE, planPage * TREATMENT_PLANS_PAGE_SIZE),
+    [filteredPlans, planPage],
+  );
 
   const selectedPlan = useMemo(
     () =>
@@ -355,6 +367,12 @@ export function TreatmentPlansWorkspace() {
       plans[0] ??
       null,
     [filteredPlans, plans, selectedPlanId],
+  );
+  const planVisits = selectedPlan?.visits ?? [];
+  const planVisitTotalPages = Math.max(1, Math.ceil(planVisits.length / PLAN_VISITS_PAGE_SIZE));
+  const paginatedPlanVisits = useMemo(
+    () => planVisits.slice((planVisitPage - 1) * PLAN_VISITS_PAGE_SIZE, planVisitPage * PLAN_VISITS_PAGE_SIZE),
+    [planVisits, planVisitPage],
   );
 
   const stats = useMemo(
@@ -542,6 +560,16 @@ export function TreatmentPlansWorkspace() {
   }, []);
 
   useEffect(() => {
+    setPlanPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (planPage > planTotalPages) {
+      setPlanPage(planTotalPages);
+    }
+  }, [planPage, planTotalPages]);
+
+  useEffect(() => {
     if (selectedPlan) {
       setVisitForm(toVisitFormForPlan(selectedPlan));
       setPlanEditForm({
@@ -554,8 +582,20 @@ export function TreatmentPlansWorkspace() {
       setEditVisitForms(
         Object.fromEntries((selectedPlan.visits ?? []).map((visit) => [visit.id, toVisitEditForm(visit)])),
       );
+      setDetailsError(null);
+      setDetailsNotice(null);
     }
   }, [selectedPlan?.id]);
+
+  useEffect(() => {
+    setPlanVisitPage(1);
+  }, [selectedPlan?.id]);
+
+  useEffect(() => {
+    if (planVisitPage > planVisitTotalPages) {
+      setPlanVisitPage(planVisitTotalPages);
+    }
+  }, [planVisitPage, planVisitTotalPages]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -599,6 +639,8 @@ export function TreatmentPlansWorkspace() {
     setError(null);
     setNotice(null);
     setAddVisitError(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson("/visits", "POST", {
@@ -614,7 +656,7 @@ export function TreatmentPlansWorkspace() {
         supplies_reserved: toSupplyLines(visitForm.supplies_reserved),
       });
       setVisitForm(toVisitFormForPlan(selectedPlan));
-      setNotice(`Visit added to plan #${selectedPlan.id}.`);
+      setDetailsNotice(`Visit added to plan #${selectedPlan.id}.`);
       await load();
       setDetailsOpen(true);
     } catch (err) {
@@ -635,6 +677,8 @@ export function TreatmentPlansWorkspace() {
     setError(null);
     setNotice(null);
     setPlanEditError(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/treatment-plans/${selectedPlan.id}`, "PATCH", {
@@ -644,7 +688,7 @@ export function TreatmentPlansWorkspace() {
         diagnosis: planEditForm.diagnosis || null,
         notes: planEditForm.notes || null,
       });
-      setNotice(`Treatment plan #${selectedPlan.id} updated successfully.`);
+      setDetailsNotice(`Treatment plan #${selectedPlan.id} updated successfully.`);
       await load();
       setDetailsOpen(true);
     } catch (err) {
@@ -877,7 +921,7 @@ export function TreatmentPlansWorkspace() {
         service_cost: Number(current.service_cost || 0),
         supplies_reserved: toSupplyLines(current.supplies_reserved),
       });
-      setNotice("Visit updated successfully.");
+      setDetailsNotice("Visit updated successfully.");
       await load();
       setDetailsOpen(true);
     } catch (err) {
@@ -1160,7 +1204,7 @@ export function TreatmentPlansWorkspace() {
             <div className="text-sm text-slate-500">Loading treatment plans...</div>
           ) : (
             <div className="space-y-4">
-              {filteredPlans.map((plan) => {
+              {paginatedPlans.map((plan) => {
                 const active = selectedPlan?.id === plan.id;
                 const completedVisits = (plan.visits ?? []).filter((visit) => visit.status === "completed").length;
                 return (
@@ -1193,6 +1237,7 @@ export function TreatmentPlansWorkspace() {
                 );
               })}
               {filteredPlans.length === 0 ? <div className="text-sm text-slate-500">No treatment plans match the current search.</div> : null}
+              <PaginationControls page={planPage} totalPages={planTotalPages} totalItems={filteredPlans.length} pageSize={TREATMENT_PLANS_PAGE_SIZE} itemLabel="plans" onPageChange={setPlanPage} />
             </div>
           )}
         </Panel>
@@ -1248,6 +1293,8 @@ export function TreatmentPlansWorkspace() {
             </div>
 
             <div className="max-h-[calc(92vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedPlanView === "overview" ? (
                 <div className="space-y-5">
                   <Panel title="Plan Summary" description="Keep the case context and timeline visible while you work the visit flow.">
@@ -1272,7 +1319,8 @@ export function TreatmentPlansWorkspace() {
                 <div className="space-y-5">
                   <Panel title="Plan Visits" description="Visits now live inside the treatment plan workspace instead of being a separate detail flow.">
                     <div className="space-y-4">
-                      {(selectedPlan.visits ?? []).map((visit, visitIndex) => {
+                      {paginatedPlanVisits.map((visit, indexOnPage) => {
+                        const visitIndex = (planVisitPage - 1) * PLAN_VISITS_PAGE_SIZE + indexOnPage;
                         const completeForm = completeForms[visit.id] ?? initialCompleteForm;
                         const editVisitForm = editVisitForms[visit.id] ?? toVisitEditForm(visit);
                         const isScheduled = visit.status === "scheduled";
@@ -1509,6 +1557,7 @@ export function TreatmentPlansWorkspace() {
                         );
                       })}
                       {(selectedPlan.visits?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No visits generated for this plan yet.</div> : null}
+                      <PaginationControls page={planVisitPage} totalPages={planVisitTotalPages} totalItems={planVisits.length} pageSize={PLAN_VISITS_PAGE_SIZE} itemLabel="visits" onPageChange={setPlanVisitPage} />
                     </div>
                   </Panel>
                 </div>

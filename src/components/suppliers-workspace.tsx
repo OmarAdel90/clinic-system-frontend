@@ -16,6 +16,7 @@ import { Panel } from "@/components/panel";
 import { StatCard } from "@/components/stat-card";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type SupplierForm = {
   name: string;
@@ -37,6 +38,7 @@ type TransactionForm = {
 };
 
 type SupplierView = "overview" | "transactions" | "payments";
+const SUPPLIERS_PAGE_SIZE = 10;
 
 const initialSupplierForm: SupplierForm = {
   name: "",
@@ -262,6 +264,9 @@ export function SuppliersWorkspace() {
   const [payingId, setPayingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [supplierPage, setSupplierPage] = useState(1);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
   const transactionEditorRef = useRef<HTMLDivElement | null>(null);
 
   const filteredSuppliers = useMemo(() => {
@@ -277,6 +282,12 @@ export function SuppliersWorkspace() {
         .some((value) => String(value).toLowerCase().includes(term));
     });
   }, [search, suppliers]);
+
+  const supplierTotalPages = Math.max(1, Math.ceil(filteredSuppliers.length / SUPPLIERS_PAGE_SIZE));
+  const paginatedSuppliers = useMemo(
+    () => filteredSuppliers.slice((supplierPage - 1) * SUPPLIERS_PAGE_SIZE, supplierPage * SUPPLIERS_PAGE_SIZE),
+    [filteredSuppliers, supplierPage],
+  );
 
   const selectedSupplier = useMemo(
     () => suppliers.find((supplier) => supplier.id === selectedId) ?? null,
@@ -371,11 +382,23 @@ export function SuppliersWorkspace() {
     setTransactionForm(initialTransactionForm());
   }, [selectedSupplier?.id]);
 
+  useEffect(() => {
+    setSupplierPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (supplierPage > supplierTotalPages) {
+      setSupplierPage(supplierTotalPages);
+    }
+  }, [supplierPage, supplierTotalPages]);
+
   function openSupplierDetails(id: number) {
     setSelectedId(id);
     setSelectedView("overview");
     setEditingTransactionId(null);
     setTransactionForm(initialTransactionForm());
+    setDetailsError(null);
+    setDetailsNotice(null);
     setDetailsOpen(true);
   }
 
@@ -407,16 +430,18 @@ export function SuppliersWorkspace() {
     setSavingEdit(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/suppliers/${selectedSupplier.id}`, "PATCH", {
         name: editSupplierForm.name,
         phone_number: editSupplierForm.phone_number,
       });
-      setNotice(`Supplier "${editSupplierForm.name}" updated successfully.`);
+      setDetailsNotice(`Supplier "${editSupplierForm.name}" updated successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update supplier.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to update supplier.");
     } finally {
       setSavingEdit(false);
     }
@@ -426,10 +451,12 @@ export function SuppliersWorkspace() {
     setDeletingId(id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/suppliers/${id}`);
-      setNotice(`Supplier #${id} deleted successfully.`);
+      setDetailsNotice(`Supplier #${id} deleted successfully.`);
       if (selectedId === id) {
         setSelectedId(null);
         setDetailsOpen(false);
@@ -437,7 +464,7 @@ export function SuppliersWorkspace() {
       }
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete supplier.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete supplier.");
     } finally {
       setDeletingId(null);
     }
@@ -520,19 +547,21 @@ export function SuppliersWorkspace() {
     setSavingTransaction(true);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       if (editingTransactionId) {
         await mutateJson(`/transactions/${editingTransactionId}`, "PATCH", payload);
-        setNotice("Supplier batch updated successfully.");
+        setDetailsNotice("Supplier batch updated successfully.");
       } else {
         await mutateJson("/transactions", "POST", payload);
-        setNotice("Supplier batch recorded and warehouse inventory updated.");
+        setDetailsNotice("Supplier batch recorded and warehouse inventory updated.");
       }
       resetTransactionEditor();
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save supplier batch.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to save supplier batch.");
     } finally {
       setSavingTransaction(false);
     }
@@ -542,16 +571,18 @@ export function SuppliersWorkspace() {
     setDeletingTransactionId(id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await removeResource(`/transactions/${id}`);
       if (editingTransactionId === id) {
         resetTransactionEditor();
       }
-      setNotice(`Supplier batch #${id} deleted successfully.`);
+      setDetailsNotice(`Supplier batch #${id} deleted successfully.`);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete supplier batch.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to delete supplier batch.");
     } finally {
       setDeletingTransactionId(null);
     }
@@ -561,13 +592,15 @@ export function SuppliersWorkspace() {
     event.preventDefault();
     const amount = Number(paymentAmounts[payment.id] || 0);
     if (!amount || amount <= 0) {
-      setError("Enter a payment amount greater than zero.");
+      setDetailsError("Enter a payment amount greater than zero.");
       return;
     }
 
     setPayingId(payment.id);
     setError(null);
     setNotice(null);
+    setDetailsError(null);
+    setDetailsNotice(null);
 
     try {
       await mutateJson(`/supplier-payments/${payment.id}/pay`, "PATCH", {
@@ -576,10 +609,10 @@ export function SuppliersWorkspace() {
       });
       setPaymentAmounts((current) => ({ ...current, [payment.id]: "" }));
       setPaymentNotes((current) => ({ ...current, [payment.id]: "" }));
-      setNotice("Supplier payment recorded successfully.");
+      setDetailsNotice("Supplier payment recorded successfully.");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to record supplier payment.");
+      setDetailsError(err instanceof Error ? err.message : "Unable to record supplier payment.");
     } finally {
       setPayingId(null);
     }
@@ -612,7 +645,7 @@ export function SuppliersWorkspace() {
             <div className="text-sm text-slate-500">Loading suppliers...</div>
           ) : (
             <div className="space-y-2.5">
-              {filteredSuppliers.map((supplier) => {
+              {paginatedSuppliers.map((supplier) => {
                 const linkedTransactions = transactions.filter((transaction) => transaction.supplier_id === supplier.id).length;
                 return (
                   <button
@@ -636,6 +669,7 @@ export function SuppliersWorkspace() {
                 );
               })}
               {filteredSuppliers.length === 0 ? <div className="text-sm text-slate-500">No suppliers match the current search.</div> : null}
+              <PaginationControls page={supplierPage} totalPages={supplierTotalPages} totalItems={filteredSuppliers.length} pageSize={SUPPLIERS_PAGE_SIZE} itemLabel="suppliers" onPageChange={setSupplierPage} />
             </div>
           )}
         </Panel>
@@ -691,6 +725,8 @@ export function SuppliersWorkspace() {
             </div>
 
             <div className="max-h-[calc(90vh-132px)] overflow-y-auto px-5 py-5">
+              {detailsError ? <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{detailsError}</div> : null}
+              {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedView === "overview" ? (
                 <div className="space-y-5">
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type VisitForm = {
   lead_id: string;
@@ -62,6 +63,8 @@ const initialCompleteForm: CompleteForm = {
 };
 
 type VisitDetailsView = "overview" | "edit" | "supplies" | "complete";
+
+const VISITS_PAGE_SIZE = 10;
 
 function toSupplyLines(rows: SupplyForm[]): SupplyLine[] {
   return rows
@@ -139,6 +142,7 @@ export function VisitsWorkspace() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingVisit, setDeletingVisit] = useState<number | null>(null);
   const [activeVisit, setActiveVisit] = useState<number | null>(null);
+  const [visitPage, setVisitPage] = useState(1);
 
   const filteredVisits = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -170,6 +174,11 @@ export function VisitsWorkspace() {
       null,
     [filteredVisits, selectedVisitId, visits],
   );
+  const visitTotalPages = Math.max(1, Math.ceil(filteredVisits.length / VISITS_PAGE_SIZE));
+  const paginatedVisits = useMemo(() => {
+    const start = (visitPage - 1) * VISITS_PAGE_SIZE;
+    return filteredVisits.slice(start, start + VISITS_PAGE_SIZE);
+  }, [filteredVisits, visitPage]);
 
   const stats = useMemo(
     () => ({
@@ -213,6 +222,16 @@ export function VisitsWorkspace() {
   useEffect(() => {
     setEditForm(toVisitForm(selectedVisit));
   }, [selectedVisit]);
+
+  useEffect(() => {
+    setVisitPage(1);
+  }, [search, statusFilter, clinicFilter, userFilter]);
+
+  useEffect(() => {
+    if (visitPage > visitTotalPages) {
+      setVisitPage(visitTotalPages);
+    }
+  }, [visitPage, visitTotalPages]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -434,7 +453,7 @@ export function VisitsWorkspace() {
             <div className="text-sm text-slate-500">Loading visits...</div>
           ) : (
             <div className="space-y-4">
-              {filteredVisits.map((visit) => {
+              {paginatedVisits.map((visit) => {
                 const active = selectedVisit?.id === visit.id;
 
                 return (
@@ -467,6 +486,7 @@ export function VisitsWorkspace() {
                 );
               })}
               {filteredVisits.length === 0 ? <div className="text-sm text-slate-500">No visits match the current filters.</div> : null}
+              <PaginationControls page={visitPage} totalPages={visitTotalPages} totalItems={filteredVisits.length} pageSize={VISITS_PAGE_SIZE} itemLabel="visits" onPageChange={setVisitPage} />
             </div>
           )}
         </Panel>

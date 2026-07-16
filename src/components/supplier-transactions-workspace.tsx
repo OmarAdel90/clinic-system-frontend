@@ -15,6 +15,7 @@ import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type TransactionItemForm = {
   sku: string;
@@ -45,6 +46,8 @@ const initialForm: TransactionForm = {
   transaction_date: new Date().toISOString().slice(0, 10),
   items_bought: [{ ...initialItem }],
 };
+
+const SUPPLIER_TRANSACTIONS_PAGE_SIZE = 10;
 
 function toForm(transaction?: WarehouseSupplierTransaction | null): TransactionForm {
   if (!transaction) {
@@ -103,6 +106,7 @@ export function SupplierTransactionsWorkspace() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [transactionPage, setTransactionPage] = useState(1);
 
   const filteredTransactions = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -131,6 +135,11 @@ export function SupplierTransactionsWorkspace() {
       null,
     [filteredTransactions, selectedTransactionId, transactions],
   );
+  const transactionTotalPages = Math.max(1, Math.ceil(filteredTransactions.length / SUPPLIER_TRANSACTIONS_PAGE_SIZE));
+  const paginatedTransactions = useMemo(() => {
+    const start = (transactionPage - 1) * SUPPLIER_TRANSACTIONS_PAGE_SIZE;
+    return filteredTransactions.slice(start, start + SUPPLIER_TRANSACTIONS_PAGE_SIZE);
+  }, [filteredTransactions, transactionPage]);
 
   const selectedPayment = useMemo(
     () => payments.find((payment) => payment.transaction_id === selectedTransaction?.id) ?? null,
@@ -199,6 +208,16 @@ export function SupplierTransactionsWorkspace() {
   useEffect(() => {
     queueMicrotask(() => void load());
   }, []);
+
+  useEffect(() => {
+    setTransactionPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (transactionPage > transactionTotalPages) {
+      setTransactionPage(transactionTotalPages);
+    }
+  }, [transactionPage, transactionTotalPages]);
 
   useEffect(() => {
     setEditForm(toForm(selectedTransaction));
@@ -375,7 +394,7 @@ export function SupplierTransactionsWorkspace() {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredTransactions.map((transaction) => {
+              {paginatedTransactions.map((transaction) => {
                 const active = selectedTransaction?.id === transaction.id;
                 const units = (transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
                 const payment = payments.find((entry) => entry.transaction_id === transaction.id);
@@ -404,6 +423,7 @@ export function SupplierTransactionsWorkspace() {
                   </button>
                 );
               })}
+              <PaginationControls page={transactionPage} totalPages={transactionTotalPages} totalItems={filteredTransactions.length} pageSize={SUPPLIER_TRANSACTIONS_PAGE_SIZE} itemLabel="transactions" onPageChange={setTransactionPage} />
             </div>
           )}
         </Panel>

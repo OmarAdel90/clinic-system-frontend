@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { FormEvent, type Dispatch, type SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { Clinic, User, Warehouse } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -9,6 +9,7 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { WorkflowTextarea } from "@/components/workflow-textarea";
 import { StatCard } from "@/components/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
 
 type ServiceRow = {
   name: string;
@@ -27,6 +28,14 @@ type ClinicForm = {
   warehouse_id: string;
 };
 
+type PaginatedResponse<T> = {
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
 const initialForm: ClinicForm = {
   name: "",
   arabic_name: "",
@@ -38,6 +47,10 @@ const initialForm: ClinicForm = {
   doctors: [],
   warehouse_id: "",
 };
+
+const CLINICS_PAGE_SIZE = 10;
+const CLINIC_PHONE_PATTERN = /^\+?[0-9][0-9\s\-()]{6,19}$/;
+const CLINIC_NAME_PATTERN = /^(?=.*[A-Za-z0-9])[A-Za-z0-9&().,'/\-\s]+$/;
 
 function toList(value: string) {
   return value
@@ -124,6 +137,30 @@ function buildClinicPayload(form: ClinicForm, includeWarehouse: boolean) {
   return payload;
 }
 
+function validateClinicForm(form: ClinicForm) {
+  const name = form.name.trim();
+  const phone = form.phone_number.trim();
+
+  if (name.length < 2) {
+    return "Clinic name must be at least 2 characters.";
+  }
+
+  if (!CLINIC_NAME_PATTERN.test(name)) {
+    return "Clinic name may only contain letters, numbers, spaces, and basic punctuation.";
+  }
+
+  if (!CLINIC_PHONE_PATTERN.test(phone)) {
+    return "Phone number must contain only digits and standard phone symbols.";
+  }
+
+  return null;
+}
+
+function buildSearchPath(search: string) {
+  const term = search.trim();
+  return term ? `/clinics?search=${encodeURIComponent(term)}` : "/clinics";
+}
+
 export function ClinicsWorkspace() {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -141,30 +178,13 @@ export function ClinicsWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
-
-  const filteredClinics = useMemo(() => {
-    const term = search.trim().toLowerCase();
-
-    return clinics.filter((clinic) => {
-      if (!term) {
-        return true;
-      }
-
-      return [
-        clinic.name,
-        clinic.arabic_name,
-        clinic.phone_number,
-        clinic.address,
-        ...(clinic.departments || []),
-        ...normalizeServices(clinic.services as unknown[] | null | undefined).map((service) => service.name),
-        String(clinic.id),
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term));
-    });
-  }, [clinics, search]);
+  const [clinicPage, setClinicPage] = useState(1);
+  const [clinicTotalPages, setClinicTotalPages] = useState(1);
+  const [clinicTotalItems, setClinicTotalItems] = useState(0);
+  const skipSearchFetchRef = useRef(true);
 
   const selectedClinic = useMemo(() => clinics.find((clinic) => clinic.id === selectedId) ?? null, [clinics, selectedId]);
+  const paginatedClinics = useMemo(() => clinics, [clinics]);
 
   const doctorOptions = useMemo(
     () => users.map((user) => ({ id: user.id, label: user.name || user.email })),
@@ -190,35 +210,63 @@ export function ClinicsWorkspace() {
     [clinics],
   );
 
-  async function load() {
-    setLoading(true);
+  async function loadClinics(searchTerm = search, page = 1, options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
-      const [clinicPayload, userPayload, warehousePayload] = await Promise.all([
-        fetchCollection<Clinic>("/clinics"),
-        fetchCollection<User>("/users"),
-        fetchCollection<Warehouse>("/warehouses"),
-      ]);
-      setClinics(clinicPayload);
-      setUsers(userPayload);
-      setWarehouses(warehousePayload);
+      const separator = buildSearchPath(searchTerm).includes("?") ? "&" : "?";
+      const clinicPayload = await fetchResource<PaginatedResponse<Clinic>>(`${buildSearchPath(searchTerm)}${separator}page=${page}&per_page=${CLINICS_PAGE_SIZE}`);
+      setClinics(clinicPayload.data);
+      setClinicPage(clinicPayload.current_page);
+      setClinicTotalPages(Math.max(1, clinicPayload.last_page));
+      setClinicTotalItems(clinicPayload.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load clinics.");
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function loadLookups() {
+    try {
+      const [userPayload, warehousePayload] = await Promise.all([
+        fetchResource<PaginatedResponse<User>>(`/users?page=1&per_page=100`),
+        fetchCollection<Warehouse>("/warehouses"),
+      ]);
+      setUsers(userPayload.data);
+      setWarehouses(warehousePayload);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load clinics.");
     }
   }
 
   useEffect(() => {
     queueMicrotask(() => {
-      void load();
+      void Promise.all([loadClinics("", 1), loadLookups()]);
     });
   }, []);
 
   useEffect(() => {
     setEditForm(toForm(selectedClinic));
   }, [selectedClinic]);
+
+  useEffect(() => {
+    if (skipSearchFetchRef.current) {
+      skipSearchFetchRef.current = false;
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void loadClinics(search, 1);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [search]);
 
   useEffect(() => {
     if (!createForm.provides_medication && createForm.warehouse_id) {
@@ -234,6 +282,13 @@ export function ClinicsWorkspace() {
 
   async function createClinic(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = validateClinicForm(createForm);
+    if (validationError) {
+      setError(validationError);
+      setNotice(null);
+      return;
+    }
+
     setSavingCreate(true);
     setError(null);
     setNotice(null);
@@ -242,7 +297,7 @@ export function ClinicsWorkspace() {
       await mutateJson<Clinic>("/clinics", "POST", buildClinicPayload(createForm, false));
       setCreateForm(initialForm);
       setNotice("Clinic created successfully.");
-      await load();
+      await loadClinics(search, clinicPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create clinic.");
     } finally {
@@ -256,6 +311,13 @@ export function ClinicsWorkspace() {
       return;
     }
 
+    const validationError = validateClinicForm(editForm);
+    if (validationError) {
+      setDetailsError(validationError);
+      setDetailsNotice(null);
+      return;
+    }
+
     setSavingEdit(true);
     setError(null);
     setNotice(null);
@@ -265,7 +327,7 @@ export function ClinicsWorkspace() {
     try {
       await mutateJson<Clinic>(`/clinics/${selectedClinic.id}`, "PATCH", buildClinicPayload(editForm, true));
       setDetailsNotice(`Clinic "${editForm.name}" updated successfully.`);
-      await load();
+      await loadClinics(search, clinicPage);
     } catch (err) {
       setDetailsError(err instanceof Error ? err.message : "Unable to update clinic.");
     } finally {
@@ -287,7 +349,7 @@ export function ClinicsWorkspace() {
         setSelectedId(null);
         setDetailsOpen(false);
       }
-      await load();
+      await loadClinics(search, clinicPage);
     } catch (err) {
       setDetailsError(err instanceof Error ? err.message : "Unable to delete clinic.");
     } finally {
@@ -421,7 +483,7 @@ export function ClinicsWorkspace() {
             <div className="text-sm text-slate-500">Loading clinics...</div>
           ) : (
             <div className="space-y-3">
-              {filteredClinics.map((clinic) => {
+              {paginatedClinics.map((clinic) => {
                 const active = selectedClinic?.id === clinic.id;
                 return (
                   <button
@@ -454,6 +516,14 @@ export function ClinicsWorkspace() {
                   </button>
                 );
               })}
+              <PaginationControls
+                page={clinicPage}
+                totalPages={clinicTotalPages}
+                totalItems={clinicTotalItems}
+                pageSize={CLINICS_PAGE_SIZE}
+                itemLabel="clinics"
+                onPageChange={(page) => void loadClinics(search, page)}
+              />
             </div>
           )}
         </Panel>
@@ -462,9 +532,9 @@ export function ClinicsWorkspace() {
           <Panel title="Create Clinic" description="Set up branch details, departments, and available services.">
             <form className="space-y-4" onSubmit={createClinic}>
               <div className="grid gap-4 md:grid-cols-2">
-                <WorkflowInput label="Name" name="create-clinic-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
+                <WorkflowInput label="Name" name="create-clinic-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} placeholder="Clinic name" required />
                 <WorkflowInput label="Arabic Name" name="create-clinic-arabic-name" value={createForm.arabic_name} onChange={(value) => setCreateForm((current) => ({ ...current, arabic_name: value }))} required />
-                <WorkflowInput label="Phone" name="create-clinic-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} required />
+                <WorkflowInput label="Phone" name="create-clinic-phone" value={createForm.phone_number} onChange={(value) => setCreateForm((current) => ({ ...current, phone_number: value }))} placeholder="+20 10..." required />
                 <WorkflowSelect label="Medication Support" value={createForm.provides_medication ? "true" : "false"} onChange={(value) => setCreateForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
               </div>
               <WorkflowTextarea label="Address" value={createForm.address} onChange={(value) => setCreateForm((current) => ({ ...current, address: value }))} placeholder="Street, district, and any branch notes" />
@@ -513,9 +583,9 @@ export function ClinicsWorkspace() {
                 <Panel title="Clinic Details" description="Adjust branch details, staffing, and warehouse linkage without leaving the list view.">
                   <form className="space-y-4" onSubmit={updateClinic}>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                      <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} placeholder="Clinic name" required />
                       <WorkflowInput label="Arabic Name" name="edit-clinic-arabic-name" value={editForm.arabic_name} onChange={(value) => setEditForm((current) => ({ ...current, arabic_name: value }))} required />
-                      <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} required />
+                      <WorkflowInput label="Phone" name="edit-clinic-phone" value={editForm.phone_number} onChange={(value) => setEditForm((current) => ({ ...current, phone_number: value }))} placeholder="+20 10..." required />
                       <WorkflowSelect label="Medication Support" value={editForm.provides_medication ? "true" : "false"} onChange={(value) => setEditForm((current) => ({ ...current, provides_medication: value === "true" }))} options={[{ label: "Provides medication", value: "true" }, { label: "Services only", value: "false" }]} required />
                       <WorkflowSelect label="Warehouse" value={editForm.warehouse_id} onChange={(value) => setEditForm((current) => ({ ...current, warehouse_id: value }))} options={availableWarehouses.map((warehouse) => ({ label: warehouse.name, value: String(warehouse.id) }))} emptyLabel="No warehouse" />
                     </div>

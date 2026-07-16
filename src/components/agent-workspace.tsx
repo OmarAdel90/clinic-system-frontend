@@ -3,7 +3,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { fetchCollection, fetchResource, mutateJson } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateFormData, mutateJson } from "@/lib/api";
 import type {
   AgentMetrics,
   Clinic,
@@ -19,6 +19,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
+import { PaginationControls } from "@/components/pagination-controls";
 
 function getConversationTitle(conversation: Conversation) {
   const arabicName = (conversation.lead as (Conversation["lead"] & { arabic_name?: string | null }) | null | undefined)?.arabic_name;
@@ -34,6 +35,111 @@ function getMessagePreview(rows: MessageRecord[]) {
   const latest = rows[rows.length - 1];
   return latest?.body || latest?.media_caption || latest?.type || "No messages loaded yet.";
 }
+
+function getMediaFileName(message: MessageRecord) {
+  if (!message.media_url) {
+    return "attachment";
+  }
+
+  const lastSegment = message.media_url.split("/").pop() || "attachment";
+  return lastSegment.split("?")[0] || "attachment";
+}
+
+function renderMessageMedia(message: MessageRecord) {
+  if (!message.media_url) {
+    return null;
+  }
+
+  const type = (message.type || "").toLowerCase();
+  const sharedClassName = "mt-3 overflow-hidden rounded-2xl border border-white/10 bg-black/5";
+  const actions = (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <a
+        href={message.media_url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center rounded-lg border border-current/20 px-3 py-1.5 text-xs font-medium underline-offset-2 hover:underline"
+      >
+        Open
+      </a>
+      <a
+        href={message.media_url}
+        download={getMediaFileName(message)}
+        className="inline-flex items-center rounded-lg border border-current/20 px-3 py-1.5 text-xs font-medium underline-offset-2 hover:underline"
+      >
+        Save
+      </a>
+    </div>
+  );
+
+  if (type === "image") {
+    return (
+      <>
+        <img src={message.media_url} alt={message.media_caption || "Image attachment"} className={`${sharedClassName} max-h-80 w-full object-cover`} />
+        {actions}
+      </>
+    );
+  }
+
+  if (type === "audio" || (message.media_mime || "").startsWith("audio/")) {
+    return (
+      <>
+        <div className={sharedClassName}>
+          <audio controls preload="metadata" className="w-full">
+            <source src={message.media_url} type={message.media_mime || undefined} />
+          </audio>
+        </div>
+        {actions}
+      </>
+    );
+  }
+
+  if (type === "video" || (message.media_mime || "").startsWith("video/")) {
+    return (
+      <>
+        <div className={sharedClassName}>
+          <video controls preload="metadata" className="max-h-80 w-full bg-black">
+            <source src={message.media_url} type={message.media_mime || undefined} />
+          </video>
+        </div>
+        {actions}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="mt-3 rounded-xl border border-current/20 px-3 py-2 text-xs font-medium">
+        {getMediaFileName(message)}
+      </div>
+      {actions}
+    </>
+  );
+}
+
+type AttachmentKind = "image" | "video" | "file";
+
+const FOLLOWUPS_PAGE_SIZE = 9;
+const CONVERSATIONS_PAGE_SIZE = 10;
+
+function buildConversationSearchPath(search: string) {
+  const term = search.trim();
+  return term ? `/agent/conversations?search=${encodeURIComponent(term)}` : "/agent/conversations";
+}
+
+type PaginatedResponse<T> = {
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
+const ATTACHMENT_ACCEPT: Record<AttachmentKind, string> = {
+  image: "image/*",
+  video: "video/*",
+  file: ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar",
+};
 
 type SearchableOption = {
   label: string;
@@ -154,6 +260,8 @@ export function AgentWorkspace() {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [composerBody, setComposerBody] = useState("");
+  const [composerMedia, setComposerMedia] = useState<File | null>(null);
+  const [attachmentKind, setAttachmentKind] = useState<AttachmentKind | null>(null);
   const [leadName, setLeadName] = useState("");
   const [leadProfileName, setLeadProfileName] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
@@ -165,6 +273,7 @@ export function AgentWorkspace() {
   const [conversationPlatform, setConversationPlatform] = useState("all");
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [retryingMessageId, setRetryingMessageId] = useState<number | null>(null);
   const [savingLead, setSavingLead] = useState(false);
   const [assigningClinic, setAssigningClinic] = useState(false);
   const [completingFollowupId, setCompletingFollowupId] = useState<number | null>(null);
@@ -174,7 +283,13 @@ export function AgentWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsNotice, setDetailsNotice] = useState<string | null>(null);
+  const [followupPage, setFollowupPage] = useState(1);
+  const [conversationPage, setConversationPage] = useState(1);
+  const [conversationTotalPages, setConversationTotalPages] = useState(1);
+  const [conversationTotalItems, setConversationTotalItems] = useState(0);
   const threadViewportRef = useRef<HTMLDivElement | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const skipConversationSearchFetchRef = useRef(true);
 
   const filteredFollowups = useMemo(() => {
     const term = followupSearch.trim().toLowerCase();
@@ -200,31 +315,17 @@ export function AgentWorkspace() {
     });
   }, [followupSearch, followupTiming, followups]);
 
-  const filteredConversations = useMemo(() => {
-    const term = conversationSearch.trim().toLowerCase();
-    const normalizedTerm = term.replace(/\D+/g, "");
-
-    return conversations.filter((conversation) => {
-      const leadName = conversation.lead?.name || "";
-      const leadProfileName = conversation.lead?.profile_name || "";
-      const phone = conversation.lead?.phone || "";
-      const normalizedPhone = phone.replace(/\D+/g, "");
-      const preview = getMessagePreview(messages[conversation.id] ?? []);
-      const matchesSearch =
-        term.length === 0 ||
-        [leadName, leadProfileName, conversation.platform, String(conversation.id), phone, preview]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(term)) ||
-        (normalizedTerm.length > 0 && normalizedPhone.includes(normalizedTerm));
-      const matchesPlatform = conversationPlatform === "all" || conversation.platform === conversationPlatform;
-
-      return matchesSearch && matchesPlatform;
-    });
-  }, [conversationPlatform, conversationSearch, conversations, messages]);
+  const filteredConversations = useMemo(() => conversations, [conversations]);
+  const followupTotalPages = Math.max(1, Math.ceil(filteredFollowups.length / FOLLOWUPS_PAGE_SIZE));
+  const paginatedFollowups = useMemo(() => {
+    const start = (followupPage - 1) * FOLLOWUPS_PAGE_SIZE;
+    return filteredFollowups.slice(start, start + FOLLOWUPS_PAGE_SIZE);
+  }, [filteredFollowups, followupPage]);
+  const paginatedConversations = useMemo(() => conversations, [conversations]);
 
   const selectedConversation = useMemo(
-    () => filteredConversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations.find((conversation) => conversation.id === selectedConversationId) ?? filteredConversations[0] ?? conversations[0] ?? null,
-    [conversations, filteredConversations, selectedConversationId],
+    () => conversations.find((conversation) => conversation.id === selectedConversationId) ?? conversations[0] ?? null,
+    [conversations, selectedConversationId],
   );
 
   useEffect(() => {
@@ -285,13 +386,40 @@ export function AgentWorkspace() {
   }, []);
 
   useEffect(() => {
+    setFollowupPage(1);
+  }, [followupSearch, followupTiming]);
+
+  useEffect(() => {
+    setConversationPage(1);
+  }, [conversationSearch, conversationPlatform]);
+
+  useEffect(() => {
+    if (skipConversationSearchFetchRef.current) {
+      skipConversationSearchFetchRef.current = false;
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void loadConversations(conversationSearch, 1, { silent: true });
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [conversationSearch, conversationPlatform]);
+
+  useEffect(() => {
+    if (followupPage > followupTotalPages) {
+      setFollowupPage(followupTotalPages);
+    }
+  }, [followupPage, followupTotalPages]);
+
+  useEffect(() => {
     if (!selectedConversation || !detailsOpen) {
       return;
     }
 
     const interval = window.setInterval(() => {
       void loadMessages(selectedConversation.id, { force: true, silent: true });
-    }, 15000);
+    }, 5000);
 
     return () => window.clearInterval(interval);
   }, [detailsOpen, selectedConversation?.id]);
@@ -306,27 +434,59 @@ export function AgentWorkspace() {
       const [metricsRow, followupRows, conversationRows, clinicRows, leadStatusRows] = await Promise.all([
         fetchResource<AgentMetrics>("/agent/metrics"),
         fetchCollection<FollowUp>("/agent/followups"),
-        fetchCollection<Conversation>("/agent/conversations"),
-        clinics.length === 0 ? fetchCollection<Clinic>("/clinics").catch(() => []) : Promise.resolve(clinics),
+        fetchResource<PaginatedResponse<Conversation>>(`${buildConversationSearchPath(conversationSearch)}${buildConversationSearchPath(conversationSearch).includes("?") ? "&" : "?"}platform=${encodeURIComponent(conversationPlatform)}&page=${conversationPage}&per_page=${CONVERSATIONS_PAGE_SIZE}`),
+        clinics.length === 0 ? fetchResource<PaginatedResponse<Clinic>>(`/clinics?page=1&per_page=100`).then((payload) => payload.data).catch(() => []) : Promise.resolve(clinics),
         leadStatuses.length === 0 ? fetchCollection<LeadStatus>("/lead-statuses").catch(() => []) : Promise.resolve(leadStatuses),
       ]);
 
       setMetrics(metricsRow);
       setFollowups(followupRows);
-      setConversations(conversationRows);
+      setConversations(conversationRows.data);
+      setConversationPage(conversationRows.current_page);
+      setConversationTotalPages(Math.max(1, conversationRows.last_page));
+      setConversationTotalItems(conversationRows.total);
       setClinics(clinicRows);
       setLeadStatuses(leadStatusRows);
       setSelectedConversationId((current) => {
-        if (current && conversationRows.some((conversation) => conversation.id === current)) {
+        if (current && conversationRows.data.some((conversation) => conversation.id === current)) {
           return current;
         }
 
-        return conversationRows[0]?.id ?? null;
+        return conversationRows.data[0]?.id ?? null;
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load agent workspace.");
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function loadConversations(searchTerm = conversationSearch, page = 1, options?: { silent?: boolean }) {
+    if (options?.silent) {
+      setRefreshing(true);
+    }
+
+    try {
+      const basePath = buildConversationSearchPath(searchTerm);
+      const separator = basePath.includes("?") ? "&" : "?";
+      const conversationRows = await fetchResource<PaginatedResponse<Conversation>>(`${basePath}${separator}platform=${encodeURIComponent(conversationPlatform)}&page=${page}&per_page=${CONVERSATIONS_PAGE_SIZE}`);
+      setConversations(conversationRows.data);
+      setConversationPage(conversationRows.current_page);
+      setConversationTotalPages(Math.max(1, conversationRows.last_page));
+      setConversationTotalItems(conversationRows.total);
+      setSelectedConversationId((current) => {
+        if (current && conversationRows.data.some((conversation) => conversation.id === current)) {
+          return current;
+        }
+
+        return conversationRows.data[0]?.id ?? null;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load conversations.");
+    } finally {
+      if (options?.silent) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -390,7 +550,7 @@ export function AgentWorkspace() {
   async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedConversation || !composerBody.trim()) {
+    if (!selectedConversation || (!composerBody.trim() && !composerMedia)) {
       return;
     }
 
@@ -401,10 +561,21 @@ export function AgentWorkspace() {
     setDetailsNotice(null);
 
     try {
-      const response = await mutateJson<{ messages: MessageRecord[] }>("/agent/messages/send", "POST", {
-        conversation_id: selectedConversation.id,
-        body: composerBody.trim(),
-      });
+      const response = composerMedia
+        ? await (() => {
+            const formData = new FormData();
+            formData.append("conversation_id", String(selectedConversation.id));
+            if (composerBody.trim()) {
+              formData.append("body", composerBody.trim());
+            }
+            formData.append("media", composerMedia);
+
+            return mutateFormData<{ messages: MessageRecord[] }>("/agent/messages/send", "POST", formData);
+          })()
+        : await mutateJson<{ messages: MessageRecord[] }>("/agent/messages/send", "POST", {
+            conversation_id: selectedConversation.id,
+            body: composerBody.trim(),
+          });
 
       setMessages((current) => ({
         ...current,
@@ -412,11 +583,44 @@ export function AgentWorkspace() {
       }));
       updateConversationSnapshot(selectedConversation.id, response.messages);
       setComposerBody("");
+      setComposerMedia(null);
+      setAttachmentKind(null);
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = "";
+      }
       setDetailsNotice(`Message sent in conversation #${selectedConversation.id}.`);
     } catch (err) {
+      if (selectedConversation) {
+        await loadMessages(selectedConversation.id, { force: true, silent: true });
+      }
       setDetailsError(err instanceof Error ? err.message : "Unable to send message.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleRetryMessage(messageId: number) {
+    if (!selectedConversation) {
+      return;
+    }
+
+    setRetryingMessageId(messageId);
+    setDetailsError(null);
+    setDetailsNotice(null);
+
+    try {
+      const response = await mutateJson<{ messages: MessageRecord[] }>(`/agent/messages/${messageId}/retry`, "POST", {});
+      setMessages((current) => ({
+        ...current,
+        [selectedConversation.id]: response.messages,
+      }));
+      updateConversationSnapshot(selectedConversation.id, response.messages);
+      setDetailsNotice("Message retried successfully.");
+    } catch (err) {
+      await loadMessages(selectedConversation.id, { force: true, silent: true });
+      setDetailsError(err instanceof Error ? err.message : "Unable to retry message.");
+    } finally {
+      setRetryingMessageId(null);
     }
   }
 
@@ -563,7 +767,7 @@ export function AgentWorkspace() {
         </div>
 
         <div className="grid gap-3 xl:grid-cols-3">
-            {filteredFollowups.map((followup) => (
+            {paginatedFollowups.map((followup) => (
               <div key={followup.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -597,6 +801,7 @@ export function AgentWorkspace() {
               </div>
             ))}
           {filteredFollowups.length === 0 ? <div className="text-sm text-slate-500">No pending follow-ups match the current filters.</div> : null}
+          <PaginationControls page={followupPage} totalPages={followupTotalPages} totalItems={filteredFollowups.length} pageSize={FOLLOWUPS_PAGE_SIZE} itemLabel="follow-ups" onPageChange={setFollowupPage} />
         </div>
       </Panel>
 
@@ -615,7 +820,7 @@ export function AgentWorkspace() {
                 </div>
 
                 <div className="space-y-3">
-                  {filteredConversations.map((conversation) => {
+                  {paginatedConversations.map((conversation) => {
                     const active = selectedConversation?.id === conversation.id;
                     const preview = getMessagePreview(messages[conversation.id] ?? []);
                     const unread = conversation.unread_amount ?? 0;
@@ -651,6 +856,7 @@ export function AgentWorkspace() {
                     );
                   })}
                   {filteredConversations.length === 0 ? <div className="text-sm text-slate-500">No assigned conversations match the current filters.</div> : null}
+                  <PaginationControls page={conversationPage} totalPages={conversationTotalPages} totalItems={conversationTotalItems} pageSize={CONVERSATIONS_PAGE_SIZE} itemLabel="conversations" onPageChange={(page) => void loadConversations(conversationSearch, page)} />
                 </div>
           </div>
         </div>
@@ -720,19 +926,31 @@ export function AgentWorkspace() {
                       {selectedMessages.map((message) => {
                         const outbound = message.direction === "outbound";
                         const stamp = message.sent_at || message.created_at;
+                        const failed = outbound && message.status === "failed";
 
                         return (
                           <div key={message.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
                             <div className={`max-w-[85%] rounded-2xl border px-4 py-3 ${outbound ? "border-slate-900 bg-slate-900 text-white" : "border-[var(--line)] bg-[var(--surface)] text-slate-900"}`}>
                               <div className="break-words text-sm leading-6">{message.body || message.media_caption || message.type || "Message"}</div>
-                              {message.media_url ? (
-                                <a href={message.media_url} target="_blank" rel="noreferrer" className={`mt-2 inline-flex text-xs underline ${outbound ? "text-slate-300" : "text-slate-500"}`}>
-                                  Open media
-                                </a>
-                              ) : null}
+                              {renderMessageMedia(message)}
                               <div className={`mt-2 text-[11px] ${outbound ? "text-slate-300" : "text-slate-500"}`}>
                                 {outbound ? message.user?.name || "You" : "Lead"} | {message.status || message.type || "message"} | {formatLocalDateTime(stamp)}
                               </div>
+                              {failed ? (
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                                  <div className="text-[11px] text-rose-200">
+                                    {message.error_message || "Message failed to send."}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleRetryMessage(message.id)}
+                                    disabled={retryingMessageId === message.id}
+                                    className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {retryingMessageId === message.id ? "Retrying..." : "Retry"}
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         );
@@ -743,15 +961,65 @@ export function AgentWorkspace() {
                       <textarea
                         value={composerBody}
                         onChange={(event) => setComposerBody(event.target.value)}
-                        rows={5}
+                        rows={3}
                         placeholder="Type a reply to the selected conversation"
-                        className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                        className="w-full resize-y rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                       />
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {([
+                            { key: "image", label: "Photo" },
+                            { key: "video", label: "Video" },
+                            { key: "file", label: "Document" },
+                          ] as { key: AttachmentKind; label: string }[]).map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => {
+                                setAttachmentKind(option.key);
+                                window.setTimeout(() => attachmentInputRef.current?.click(), 0);
+                              }}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                                attachmentKind === option.key
+                                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                  : "border-[var(--line)] bg-white text-slate-600 hover:bg-slate-50"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                          <input
+                            ref={attachmentInputRef}
+                            type="file"
+                            accept={attachmentKind ? ATTACHMENT_ACCEPT[attachmentKind] : undefined}
+                            onChange={(event) => setComposerMedia(event.target.files?.[0] ?? null)}
+                            className="hidden"
+                          />
+                        </div>
+                        {composerMedia ? (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                            <span className="truncate">{composerMedia.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setComposerMedia(null);
+                                setAttachmentKind(null);
+                                if (attachmentInputRef.current) {
+                                  attachmentInputRef.current.value = "";
+                                }
+                              }}
+                              className="shrink-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1 font-medium text-slate-600 transition hover:bg-slate-100"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-xs text-slate-500">Replies are sent through the backend messaging service for this conversation. The active thread refreshes in place while the popup stays open.</div>
                         <button
                           type="submit"
-                          disabled={sending || !composerBody.trim()}
+                          disabled={sending || (!composerBody.trim() && !composerMedia)}
                           className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                         >
                           {sending ? "Sending..." : "Send Message"}
