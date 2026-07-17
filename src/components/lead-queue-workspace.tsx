@@ -143,7 +143,7 @@ export function LeadQueueWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Lead Queue"
-        description="Manage the round-robin assignment order used when new leads arrive and get auto-routed to agents."
+        description="Manage the lead assignment queue."
         actions={
           <button
             type="button"
@@ -166,7 +166,7 @@ export function LeadQueueWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Current Queue" description="Users are processed from top to bottom. After assignment, the first user moves to the back automatically.">
+        <Panel title="Current Queue" description="Current assignment order.">
           <div className="mb-4">
             <WorkflowInput
               label="Search"
@@ -225,7 +225,7 @@ export function LeadQueueWorkspace() {
           )}
         </Panel>
 
-        <Panel title="Add Users" description="Only active users who are not already in the queue appear here.">
+        <Panel title="Add Users" description="Add active users to the queue.">
           {loading ? (
             <div className="text-sm text-slate-500">Loading users...</div>
           ) : availableUsers.length === 0 ? (

@@ -151,7 +151,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Operations Dashboard"
-        description={`High-level CRM and clinic operations summary rendered in ${getBrowserTimeZone()}.`}
+        description={`CRM and clinic operations in ${getBrowserTimeZone()}.`}
       />
 
       {error ? (
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                 <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                   <div className="border-b border-[var(--line)] px-5 py-4">
                     <h3 className="text-base font-semibold text-slate-950">Visit Pipeline</h3>
-                    <p className="mt-1 text-sm text-slate-600">Current flow from booking through completion.</p>
+                    <p className="mt-1 text-sm text-slate-600">Booking through completion.</p>
                   </div>
                   <div className="grid gap-3 px-5 py-5 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
@@ -285,7 +285,7 @@ export default function DashboardPage() {
               <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                 <div className="border-b border-[var(--line)] px-5 py-4">
                   <h3 className="text-base font-semibold text-slate-950">Recent Visits</h3>
-                  <p className="mt-1 text-sm text-slate-600">Latest operational movement across the booking flow.</p>
+                  <p className="mt-1 text-sm text-slate-600">Latest visit activity.</p>
                 </div>
                 <div className="space-y-3 px-5 py-5">
                   {derived.recentVisits.map((visit) => (
@@ -314,7 +314,7 @@ export default function DashboardPage() {
               <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                 <div className="border-b border-[var(--line)] px-5 py-4">
                   <h3 className="text-base font-semibold text-slate-950">Clinic Load & Revenue</h3>
-                  <p className="mt-1 text-sm text-slate-600">Top clinics by activity, plan volume, and billing.</p>
+                  <p className="mt-1 text-sm text-slate-600">Top clinics by activity and billing.</p>
                 </div>
                 <div className="space-y-2 px-5 py-4">
                   {derived.clinicBreakdown.slice(0, 6).map((clinic) => (
@@ -338,7 +338,7 @@ export default function DashboardPage() {
               <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                 <div className="border-b border-[var(--line)] px-5 py-4">
                   <h3 className="text-base font-semibold text-slate-950">Billing Recovery</h3>
-                  <p className="mt-1 text-sm text-slate-600">A tighter view of revenue and collection health.</p>
+                  <p className="mt-1 text-sm text-slate-600">Revenue and collection health.</p>
                 </div>
                 <div className="grid gap-3 px-5 py-5">
                   <div className="grid gap-3 md:grid-cols-3">
@@ -366,7 +366,7 @@ export default function DashboardPage() {
               <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                 <div className="border-b border-[var(--line)] px-5 py-4">
                   <h3 className="text-base font-semibold text-slate-950">Recent Invoices</h3>
-                  <p className="mt-1 text-sm text-slate-600">Latest billing output tied to completed care.</p>
+                  <p className="mt-1 text-sm text-slate-600">Latest billing activity.</p>
                 </div>
                 <div className="space-y-3 px-5 py-5">
                   {derived.recentInvoices.map((invoice) => (

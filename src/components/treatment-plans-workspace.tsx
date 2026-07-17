@@ -1057,7 +1057,7 @@ export function TreatmentPlansWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Treatment Plans"
-        description={`Build care plans, generate scheduled visits, and work the case timeline in ${getBrowserTimeZone()}.`}
+        description={`Treatment plans and scheduled visits in ${getBrowserTimeZone()}.`}
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -1071,7 +1071,7 @@ export function TreatmentPlansWorkspace() {
       </div>
 
       <div className="space-y-6">
-        <Panel title="Create Treatment Plan" description="Create a plan and define the visit schedule that should be generated immediately.">
+        <Panel title="Create Treatment Plan" description="Create a plan and visit schedule.">
           <form className="space-y-4" onSubmit={handleCreate}>
             {createPlanError ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -1187,13 +1187,13 @@ export function TreatmentPlansWorkspace() {
               ))}
             </div>
 
-            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
               {saving ? "Creating..." : "Create Treatment Plan"}
             </button>
           </form>
         </Panel>
 
-        <Panel title="Plan Queue" description="Existing treatment plans now act as the main case workspace. Open one to work its visits.">
+        <Panel title="Plan Queue" description="Open a plan and manage its visits.">
           <div className="mb-4">
             <WorkflowInput
               label="Search"
@@ -1301,7 +1301,7 @@ export function TreatmentPlansWorkspace() {
               {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedPlanView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Plan Summary" description="Keep the case context and timeline visible while you work the visit flow.">
+                  <Panel title="Plan Summary" description="Case summary and timeline.">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                       <StatCard label="Lead" value={selectedPlan.lead?.name || selectedPlan.lead?.profile_name || `Lead #${selectedPlan.lead_id ?? "-"}`} hint="Lead attached to this treatment plan." />
                       <StatCard label="Clinic" value={selectedPlan.clinic?.name || `Clinic #${selectedPlan.clinic_id ?? "-"}`} hint="Clinic currently responsible for this plan." />
@@ -1321,7 +1321,7 @@ export function TreatmentPlansWorkspace() {
 
               {selectedPlanView === "visits" ? (
                 <div className="space-y-5">
-                  <Panel title="Plan Visits" description="Visits now live inside the treatment plan workspace instead of being a separate detail flow.">
+                  <Panel title="Plan Visits" description="Visits in this plan.">
                     <div className="space-y-4">
                       {paginatedPlanVisits.map((visit, indexOnPage) => {
                         const visitIndex = (planVisitPage - 1) * PLAN_VISITS_PAGE_SIZE + indexOnPage;
@@ -1467,7 +1467,7 @@ export function TreatmentPlansWorkspace() {
                                 type="button"
                                 onClick={() => void saveExistingVisit(visit.id)}
                                 disabled={savingExistingVisitId === visit.id}
-                                className="rounded-lg border border-slate-800 bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
+                                className="rounded-lg border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                               >
                                 {savingExistingVisitId === visit.id ? "Saving..." : "Save Visit Changes"}
                               </button>
@@ -1538,7 +1538,7 @@ export function TreatmentPlansWorkspace() {
                                   type="button"
                                   onClick={() => void completeVisit(visit.id)}
                                   disabled={activeVisit === visit.id}
-                                  className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
+                                  className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                                 >
                                   {activeVisit === visit.id ? "Working..." : "Complete Visit"}
                                 </button>
@@ -1569,7 +1569,7 @@ export function TreatmentPlansWorkspace() {
 
               {selectedPlanView === "edit" ? (
                 <div className="space-y-5">
-                  <Panel title="Edit Plan" description="Reassign the plan owner, lead, clinic, and notes without leaving the case workspace.">
+                  <Panel title="Edit Plan" description="Update plan details.">
                     <form className="space-y-4" onSubmit={updateSelectedPlan}>
                       {planEditError ? (
                         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -1607,7 +1607,7 @@ export function TreatmentPlansWorkspace() {
                         value={planEditForm.notes}
                         onChange={(value) => setPlanEditForm((current) => ({ ...current, notes: value }))}
                       />
-                      <button type="submit" disabled={savingPlan} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingPlan} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingPlan ? "Saving..." : "Save Plan Changes"}
                       </button>
                     </form>
@@ -1617,7 +1617,7 @@ export function TreatmentPlansWorkspace() {
 
               {selectedPlanView === "add-visit" ? (
                 <div className="space-y-5">
-                  <Panel title="Add Visit To Plan" description="Schedule a new visit directly inside the selected treatment plan.">
+                  <Panel title="Add Visit To Plan" description="Schedule a visit in this plan.">
                     <form className="space-y-4" onSubmit={createVisitForPlan}>
                       {addVisitError ? (
                         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -1707,7 +1707,7 @@ export function TreatmentPlansWorkspace() {
                         </div>
                       )}
 
-                      <button type="submit" disabled={savingVisit} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingVisit} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingVisit ? "Scheduling..." : "Add Visit To Plan"}
                       </button>
                     </form>
@@ -1717,7 +1717,7 @@ export function TreatmentPlansWorkspace() {
 
               {selectedPlanView === "actions" ? (
                 <div className="space-y-5">
-                  <Panel title="Plan Actions" description="Use destructive actions here so they stay separate from day-to-day visit work.">
+                  <Panel title="Plan Actions" description="Plan actions.">
                     <button
                       type="button"
                       onClick={() => void deleteSelectedPlan()}
@@ -1736,4 +1736,3 @@ export function TreatmentPlansWorkspace() {
     </div>
   );
 }
-

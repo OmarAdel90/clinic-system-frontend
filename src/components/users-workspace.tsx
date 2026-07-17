@@ -357,7 +357,7 @@ export function UsersWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Users"
-        description="Create team accounts, assign access, and keep operational user records complete enough for CRM, visits, and clinic setup."
+        description="Manage team accounts and access."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -371,7 +371,7 @@ export function UsersWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="User Directory" description="Search the team roster, then open a focused popup to review or edit the account.">
+        <Panel title="User Directory" description="Search and manage team accounts.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="user-search" value={search} onChange={setSearch} placeholder="Name, email, title, role, or id" />
           </div>
@@ -420,7 +420,7 @@ export function UsersWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create User" description="Create the account first, then role and profile details can be adjusted anytime.">
+          <Panel title="Create User" description="Add a new team account.">
             <form className="space-y-4" onSubmit={createUser}>
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowInput label="Name" name="create-user-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
@@ -470,7 +470,7 @@ export function UsersWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="User Details" description="Update operational details and role assignment for this account without leaving the directory.">
+                <Panel title="User Details" description="Update account details and roles.">
                   <form className="space-y-4" onSubmit={updateUser}>
                     <div className="grid gap-4 md:grid-cols-2">
                     <WorkflowInput label="Name" name="edit-user-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />

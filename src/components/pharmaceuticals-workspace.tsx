@@ -371,7 +371,7 @@ export function PharmaceuticalsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Pharmaceuticals"
-        description="Maintain the medication catalog used by stock intake, reservations, and clinical supply tracking."
+        description="Manage the medication catalog."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -385,7 +385,7 @@ export function PharmaceuticalsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Catalog" description="Search the catalog, then open a focused popup to review or edit a medication record.">
+        <Panel title="Catalog" description="Search and manage medications.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="pharma-search" value={search} onChange={setSearch} placeholder="SKU, name, Arabic name, or description" />
           </div>
@@ -424,7 +424,7 @@ export function PharmaceuticalsWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create Pharmaceutical" description="Add a catalog item with SKU, pricing, and optional localized or structured metadata.">
+          <Panel title="Create Pharmaceutical" description="Add a catalog item.">
             <form className="space-y-4" onSubmit={createItem}>
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowInput label="SKU" name="create-pharma-sku" value={createForm.SKU} onChange={(value) => setCreateForm((current) => ({ ...current, SKU: value }))} required />
@@ -434,7 +434,7 @@ export function PharmaceuticalsWorkspace() {
             </div>
             <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} />
               {renderAttributeEditor(createForm, setCreateForm, createAttributeRows, setCreateAttributeRows, "create-pharma")}
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Pharmaceutical"}
               </button>
             </form>
@@ -471,7 +471,7 @@ export function PharmaceuticalsWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="Pharmaceutical Details" description="Update SKU metadata, pricing, and descriptive fields without leaving the catalog view.">
+                <Panel title="Pharmaceutical Details" description="Update medication details.">
                   <form className="space-y-4" onSubmit={updateItem}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <WorkflowInput label="SKU" name="edit-pharma-sku" value={editForm.SKU} onChange={(value) => setEditForm((current) => ({ ...current, SKU: value }))} required />
@@ -482,7 +482,7 @@ export function PharmaceuticalsWorkspace() {
                     <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
                     {renderAttributeEditor(editForm, setEditForm, editAttributeRows, setEditAttributeRows, "edit-pharma")}
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteItem(selectedItem.SKU)} disabled={deletingSku === selectedItem.SKU} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -492,7 +492,7 @@ export function PharmaceuticalsWorkspace() {
                   </form>
                 </Panel>
 
-                <Panel title="Current Attributes" description="Structured metadata currently stored on this catalog item.">
+                <Panel title="Current Attributes" description="Saved attributes.">
                   {selectedItem.attribute && typeof selectedItem.attribute === "object" && !Array.isArray(selectedItem.attribute) ? (
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(selectedItem.attribute as Record<string, unknown>).map(([key, value]) => (
@@ -513,4 +513,3 @@ export function PharmaceuticalsWorkspace() {
     </div>
   );
 }
-

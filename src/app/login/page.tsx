@@ -10,12 +10,9 @@ export default function LoginPage() {
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-300">
               Clinic System
             </p>
-            <h1 className="mt-6 max-w-xl text-4xl font-semibold leading-tight">
-              A modern CRM workspace for clinics, care teams, and operations.
-            </h1>
+            <h1 className="mt-6 max-w-xl text-4xl font-semibold leading-tight">Clinic operations</h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300">
-              Manage leads, appointments, warehouse stock, invoices, suppliers, and role-based staff
-              access from one focused control surface.
+              Leads, visits, stock, billing, and team access in one place.
             </p>
           </div>
 
@@ -41,12 +38,8 @@ export default function LoginPage() {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Sign In</p>
               <h2 className="mt-3 text-2xl font-semibold text-slate-950">Open the operations workspace</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Use your assigned email address or phone number to continue into the clinic workspace.
+                Continue with your email address or phone number.
               </p>
-            </div>
-
-            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-              Access is role-based. Inactive accounts are blocked automatically, and only permitted sections appear after sign-in.
             </div>
 
             <Suspense fallback={<div className="text-sm text-slate-500">Loading sign-in...</div>}>

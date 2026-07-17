@@ -320,7 +320,7 @@ export function MedicalRecordsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Medical Records"
-        description="Attach clinical files to leads, keep notes beside each upload, and access the stored files without leaving the workspace."
+        description="Manage clinical files and notes."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -334,7 +334,7 @@ export function MedicalRecordsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Record Library" description="Pick a lead, then open a focused popup to review the files currently attached to that lead.">
+        <Panel title="Record Library" description="Search and manage records by lead.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowSelect
               label="Lead"
@@ -382,7 +382,7 @@ export function MedicalRecordsWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Upload Record" description="Attach a new file to the selected lead. Supported files include PDF, images, and Office documents.">
+          <Panel title="Upload Record" description="Attach a file to the selected lead.">
             <form className="space-y-4" onSubmit={createRecord}>
               <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: describeLead(lead), value: String(lead.id) }))} required emptyLabel="Select lead" />
               <WorkflowSelect label="Type" value={createForm.type} onChange={(value) => setCreateForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
@@ -391,7 +391,7 @@ export function MedicalRecordsWorkspace() {
                 <span className="text-sm font-medium text-slate-700">File</span>
                 <input type="file" onChange={onCreateFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" required />
               </label>
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Uploading..." : "Upload Medical Record"}
               </button>
             </form>
@@ -448,7 +448,7 @@ export function MedicalRecordsWorkspace() {
                     <StatCard label="File Type" value={selectedRecord.mime_type || "-"} hint="Stored mime type." />
                     <StatCard label="Uploaded" value={selectedRecord.created_at ? formatLocalDateTime(selectedRecord.created_at, { year: "numeric", month: "short", day: "numeric" }) : "-"} hint="Upload date." />
                   </div>
-                  <Panel title="Record Notes" description="Reference details stored with the uploaded file.">
+                  <Panel title="Record Notes" description="Saved notes.">
                     <div className="text-sm text-slate-600">{selectedRecord.notes || "No notes recorded for this file."}</div>
                   </Panel>
                 </div>
@@ -456,7 +456,7 @@ export function MedicalRecordsWorkspace() {
 
               {selectedRecordView === "file" ? (
                 <div className="space-y-5">
-                <Panel title="File Access" description="Open the stored attachment directly or save a local copy.">
+                <Panel title="File Access" description="Open or save the attachment.">
                   <div className="flex flex-wrap gap-3">
                     <button type="button" onClick={() => void openProtectedFile(`/medical-records/${selectedRecord.id}/file`, "view", selectedRecord.original_name || undefined)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                       View File
@@ -471,7 +471,7 @@ export function MedicalRecordsWorkspace() {
 
               {selectedRecordView === "edit" ? (
                 <div className="space-y-5">
-                <Panel title="Record Settings" description="Update the record metadata, replace the file if needed, or remove the record.">
+                <Panel title="Record Settings" description="Update or remove the record.">
                   <form className="space-y-4" onSubmit={updateRecord}>
                     <WorkflowSelect label="Type" value={editForm.type} onChange={(value) => setEditForm((current) => ({ ...current, type: value }))} options={[{ label: "Lab", value: "lab" }, { label: "X-Ray", value: "xray" }, { label: "Prescription", value: "prescription" }, { label: "Other", value: "other" }]} required allowEmpty={false} />
                     <WorkflowTextarea label="Notes" value={editForm.notes} onChange={(value) => setEditForm((current) => ({ ...current, notes: value }))} placeholder="Optional context for this file" />
@@ -480,7 +480,7 @@ export function MedicalRecordsWorkspace() {
                       <input type="file" onChange={onEditFileChange} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900" />
                     </label>
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteRecord(selectedRecord.id)} disabled={deletingId === selectedRecord.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -498,5 +498,4 @@ export function MedicalRecordsWorkspace() {
     </div>
   );
 }
-
 

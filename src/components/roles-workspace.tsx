@@ -271,7 +271,7 @@ export function RolesWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Roles"
-        description="Shape the permission bundles that the rest of the system relies on, without hard-coding role names into workflow logic."
+        description="Manage roles and permissions."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -285,7 +285,7 @@ export function RolesWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Role Catalog" description="Search the role catalog, then open a focused popup to inspect or edit the permission bundle.">
+        <Panel title="Role Catalog" description="Search and manage roles.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="role-search" value={search} onChange={setSearch} placeholder="Role, friendly permission, or id" />
           </div>
@@ -328,11 +328,11 @@ export function RolesWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create Role" description="Create the bundle and assign the permission set in one step.">
+          <Panel title="Create Role" description="Add a new role.">
             <form className="space-y-4" onSubmit={createRole}>
               <WorkflowInput label="Role Name" name="create-role-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
               {renderPermissionPicker(createForm, setCreateForm)}
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Role"}
               </button>
             </form>
@@ -368,12 +368,12 @@ export function RolesWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="Role Details" description="Rename the role and tune the permission matrix without leaving the catalog view.">
+                <Panel title="Role Details" description="Update the role and permissions.">
                   <form className="space-y-4" onSubmit={updateRole}>
                     <WorkflowInput label="Role Name" name="edit-role-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
                     {renderPermissionPicker(editForm, setEditForm)}
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteRole(selectedRole.id)} disabled={deletingId === selectedRole.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -390,4 +390,3 @@ export function RolesWorkspace() {
     </div>
   );
 }
-

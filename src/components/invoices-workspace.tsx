@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, mutateJson } from "@/lib/api";
@@ -129,7 +129,7 @@ export function InvoicesWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
-        description={`Track balances, view visit/report billing context, and record payments in ${getBrowserTimeZone()}.`}
+        description={`Invoices and payments in ${getBrowserTimeZone()}.`}
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -143,7 +143,7 @@ export function InvoicesWorkspace() {
       </div>
 
       <div className="grid gap-6">
-        <Panel title="Payment Queue" description="Quick payment handling with enough context to know what each invoice belongs to.">
+        <Panel title="Payment Queue" description="Invoice payment queue.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowInput label="Search" name="invoice-search" value={search} onChange={setSearch} placeholder="Lead, clinic, invoice number, or id" />
             <WorkflowSelect
@@ -197,7 +197,7 @@ export function InvoicesWorkspace() {
                       placeholder="0.00"
                       required
                     />
-                    <button type="submit" disabled={activeInvoice === invoice.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                    <button type="submit" disabled={activeInvoice === invoice.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {activeInvoice === invoice.id ? "Saving..." : "Record Payment"}
                     </button>
                   </form>
@@ -262,7 +262,7 @@ export function InvoicesWorkspace() {
                     <StatCard label="Remaining" value={Math.max((selectedInvoice.total_cost ?? 0) - (selectedInvoice.amount_paid ?? 0), 0)} hint="Open balance left on this invoice." />
                   </div>
 
-                  <Panel title="Invoice Context" description="Selected billing context including the linked clinic and treatment plan.">
+                  <Panel title="Invoice Context" description="Linked clinic and treatment plan.">
                     <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
                       <div>Clinic: {selectedInvoice.clinic?.name || `Clinic #${selectedInvoice.clinic_id ?? "-"}`}</div>
                       <div>Issued: {formatLocalDateTime(selectedInvoice.issued_at)}</div>
@@ -275,7 +275,7 @@ export function InvoicesWorkspace() {
 
               {selectedView === "report" ? (
                 <div className="space-y-5">
-                  <Panel title="Linked Report" description="Clinical report and usage context attached to this invoice.">
+                  <Panel title="Linked Report" description="Linked report details.">
                     {selectedInvoice.report ? (
                       <div className="grid gap-3 text-sm text-slate-600">
                         <div>Diagnosis: {selectedInvoice.report.diagnosis || "-"}</div>
@@ -292,7 +292,7 @@ export function InvoicesWorkspace() {
 
               {selectedView === "payment" ? (
                 <div className="space-y-5">
-                  <Panel title="Record Payment" description="Apply a payment directly to the selected invoice.">
+                  <Panel title="Record Payment" description="Apply a payment.">
                     <form className="space-y-4" onSubmit={(event) => submitPayment(event, selectedInvoice.id)}>
                       <WorkflowInput
                         label="Payment Amount"
@@ -308,7 +308,7 @@ export function InvoicesWorkspace() {
                         placeholder="0.00"
                         required
                       />
-                      <button type="submit" disabled={activeInvoice === selectedInvoice.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={activeInvoice === selectedInvoice.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {activeInvoice === selectedInvoice.id ? "Saving..." : "Record Payment"}
                       </button>
                     </form>
@@ -322,4 +322,3 @@ export function InvoicesWorkspace() {
     </div>
   );
 }
-

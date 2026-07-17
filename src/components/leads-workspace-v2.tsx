@@ -339,13 +339,13 @@ export function LeadsWorkspaceV2() {
     <div className="space-y-6">
       <PageHeader
         title="Leads"
-        description="Handle intake, routing, clinic handoff, and assignment context from one CRM workspace."
+        description="Manage lead intake, assignment, and clinic handoff."
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900"
+              className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
             >
               New Lead
             </button>
@@ -371,7 +371,7 @@ export function LeadsWorkspaceV2() {
         <StatCard label="Leads With Records" value={stats.medicalRecordLeadCount} hint="Leads that already have at least one medical record on file." />
       </div>
 
-      <Panel title="Lead Queue" description="Recent pipeline entries with assignment state, clinic handoff, lifecycle status, and record visibility.">
+      <Panel title="Lead Queue" description="Recent leads and routing status.">
         <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
           <WorkflowSelect
@@ -510,7 +510,7 @@ export function LeadsWorkspaceV2() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
+                  className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                 >
                   {saving ? "Creating..." : "Create Lead"}
                 </button>
@@ -568,7 +568,7 @@ export function LeadsWorkspaceV2() {
               {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedLeadView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Profile" description="Current lead state, handoff timing, and record access.">
+                  <Panel title="Profile" description="Lead status and routing details.">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-slate-950">{getLeadDisplayName(selectedLead)}</div>
@@ -599,7 +599,7 @@ export function LeadsWorkspaceV2() {
 
               {selectedLeadView === "conversations" ? (
                 <div className="space-y-5">
-                  <Panel title="Linked Threads" description="Conversation history currently attached to this lead.">
+                  <Panel title="Conversation" description="Linked conversation history.">
                     <div className="space-y-3">
                       {(selectedLead.conversations ?? []).map((conversation: Conversation) => (
                         <Link key={conversation.id} href={`/agent?conversation=${conversation.id}`} className="block rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-slate-300 hover:bg-white">
@@ -623,7 +623,7 @@ export function LeadsWorkspaceV2() {
 
               {selectedLeadView === "actions" ? (
                 <div className="space-y-5">
-                  <Panel title="Actions" description="Review current ownership and handoff values, change what you need, then save once.">
+                  <Panel title="Actions" description="Update and save lead details.">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                       <WorkflowSelect
                         label="Assigned User"
@@ -708,4 +708,3 @@ export function LeadsWorkspaceV2() {
     </div>
   );
 }
-

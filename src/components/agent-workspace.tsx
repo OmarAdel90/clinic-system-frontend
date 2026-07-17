@@ -735,7 +735,7 @@ export function AgentWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Agent Workspace"
-        description={`Follow-ups, active conversations, and live performance metrics rendered in ${getBrowserTimeZone()}.`}
+        description={`Conversations and performance in ${getBrowserTimeZone()}.`}
         actions={
           <button
             type="button"
@@ -750,7 +750,7 @@ export function AgentWorkspace() {
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{notice}</div> : null}
 
-      <Panel title="Follow-Up Queue" description="Keep quick follow-up actions nearby without stealing space from the active thread.">
+      <Panel title="Follow-Up Queue" description="Pending follow-ups.">
         <div className="mb-4 grid gap-3 md:grid-cols-2">
           <WorkflowInput label="Search" name="followup-search" value={followupSearch} onChange={setFollowupSearch} placeholder="Lead name, note, or follow-up id" />
           <WorkflowSelect
@@ -805,7 +805,7 @@ export function AgentWorkspace() {
         </div>
       </Panel>
 
-      <Panel title="Conversation Desk" description="Open a conversation popup, then work the thread and the lead from one place.">
+      <Panel title="Conversation Desk" description="Open a conversation and work the lead from one place.">
         <div className="grid gap-4">
           <div>
                 <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
@@ -901,7 +901,7 @@ export function AgentWorkspace() {
               {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
                 <div className="space-y-5">
-                  <Panel title="Thread" description="Work the conversation in a full-width popup without leaving the queue.">
+                  <Panel title="Thread" description="Conversation details.">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <StatusBadge value={selectedConversation.lead_status || selectedConversation.status || "active"} />
                       <button
@@ -1020,7 +1020,7 @@ export function AgentWorkspace() {
                         <button
                           type="submit"
                           disabled={sending || (!composerBody.trim() && !composerMedia)}
-                          className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+                          className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                         >
                           {sending ? "Sending..." : "Send Message"}
                         </button>
@@ -1030,7 +1030,7 @@ export function AgentWorkspace() {
                 </div>
 
                 <div className="space-y-5">
-                  <Panel title="Lead Actions" description="Update the lead and assign a clinic without leaving the conversation.">
+                  <Panel title="Lead Actions" description="Update lead details.">
                     <form className="space-y-4" onSubmit={handleLeadSave}>
                       <WorkflowInput label="Name" name="agent-lead-name" value={leadName} onChange={setLeadName} placeholder="Lead name" />
                       <WorkflowInput label="Profile Name" name="agent-lead-profile-name" value={leadProfileName} onChange={setLeadProfileName} placeholder="Profile name" />
@@ -1046,7 +1046,7 @@ export function AgentWorkspace() {
                         <button
                           type="submit"
                           disabled={savingLead}
-                          className="flex-1 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+                          className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                         >
                           {savingLead ? "Saving..." : "Save Lead"}
                         </button>
@@ -1054,7 +1054,7 @@ export function AgentWorkspace() {
                     </form>
                   </Panel>
 
-                  <Panel title="Clinic Assignment" description="Assign or clear the clinic directly from the agent workflow.">
+                  <Panel title="Clinic Assignment" description="Assign or clear the clinic.">
                     <div className="space-y-4">
                       <WorkflowSelect
                         label="Clinic"
@@ -1084,4 +1084,3 @@ export function AgentWorkspace() {
     </div>
   );
 }
-

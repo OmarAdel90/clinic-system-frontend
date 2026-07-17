@@ -358,7 +358,7 @@ export function SupplierTransactionsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Supplier Transactions"
-        description="Record inbound supplier batches against a warehouse, validate SKUs against the pharmaceutical catalog, and keep intake plus payment history visible."
+        description="Record supplier deliveries and payments."
         actions={
           <button
             type="button"
@@ -381,7 +381,7 @@ export function SupplierTransactionsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Panel title="Transaction History" description="Recent inbound supplier batches with warehouse and supplier context.">
+        <Panel title="Transaction History" description="Recent supplier deliveries.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="transaction-search" value={search} onChange={setSearch} placeholder="Supplier, warehouse, clinic, or transaction id" />
           </div>
@@ -429,7 +429,7 @@ export function SupplierTransactionsWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Record Batch" description="Create a supplier delivery batch. Each SKU must already exist in the pharmaceutical catalog.">
+          <Panel title="Record Batch" description="Create a supplier delivery batch.">
             <form className="space-y-4" onSubmit={createTransaction}>
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowSelect label="Warehouse" value={createForm.warehouse_id} onChange={(value) => setCreateForm((current) => ({ ...current, warehouse_id: value }))} options={warehouseOptions} required emptyLabel="Select warehouse" />
@@ -469,13 +469,13 @@ export function SupplierTransactionsWorkspace() {
                 Total Batch Value: <span className="font-semibold text-slate-950">{formTotal(createForm).toFixed(2)}</span>
               </div>
 
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Record Supplier Batch"}
               </button>
             </form>
           </Panel>
 
-          <Panel title="Selected Transaction" description="Edit transaction contents, inspect the linked payable, or remove the transaction entirely.">
+          <Panel title="Selected Transaction" description="Update or remove the transaction.">
             {selectedTransaction ? (
               <div className="space-y-5">
                 <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -524,7 +524,7 @@ export function SupplierTransactionsWorkspace() {
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                    <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {savingEdit ? "Saving..." : "Save Changes"}
                     </button>
                     <button type="button" onClick={() => void deleteTransaction(selectedTransaction.id)} disabled={deletingId === selectedTransaction.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -548,7 +548,7 @@ export function SupplierTransactionsWorkspace() {
                         <div className="min-w-0 flex-1">
                           <WorkflowInput label="Record Payment" name="payment-amount" type="number" value={paymentAmount} onChange={setPaymentAmount} />
                         </div>
-                        <button type="submit" disabled={paying} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={paying} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {paying ? "Saving..." : "Add Payment"}
                         </button>
                       </form>
@@ -567,4 +567,3 @@ export function SupplierTransactionsWorkspace() {
     </div>
   );
 }
-

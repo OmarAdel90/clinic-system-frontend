@@ -158,7 +158,7 @@ export function SettingsWorkspace() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Settings" description="Loading seeded-admin controls..." />
+        <PageHeader title="Settings" description="Loading settings..." />
       </div>
     );
   }
@@ -168,9 +168,9 @@ export function SettingsWorkspace() {
       <div className="space-y-6">
         <PageHeader
           title="Settings"
-          description="This area is reserved for the seeded admin account because it can overwrite live Meta credentials."
+          description="This area is available only to the seeded admin."
         />
-        <Panel title="Access restricted" description="Sign in with the seeded admin account to manage Meta messaging credentials.">
+        <Panel title="Access restricted" description="Sign in with the seeded admin account.">
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
             Only <span className="font-semibold">{SEEDED_ADMIN_EMAIL}</span> can access this page.
           </div>
@@ -182,8 +182,8 @@ export function SettingsWorkspace() {
   if (pageError || !facebookForm || !whatsappForm) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Settings" description="Manage Meta messaging credentials and webhook verification values." />
-        <Panel title="Unable to load settings" description="The backend did not return the seeded-admin settings payload.">
+        <PageHeader title="Settings" description="Meta credentials and webhook settings." />
+        <Panel title="Unable to load settings" description="The settings payload could not be loaded.">
           <NoticeBanner message={pageError ?? "Unable to load settings."} tone="error" />
         </Panel>
       </div>
@@ -194,12 +194,12 @@ export function SettingsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Enter and rotate Meta credentials here. Secrets are editable only from the seeded admin account and persist to the backend environment file."
+        description="Update Meta credentials here."
       />
 
       <Panel
         title="Facebook & Instagram Messaging"
-        description="Configure Messenger and Instagram DM credentials, app security values, and the shared verification token."
+        description="Messenger, Instagram, and shared verification settings."
         actions={
           <button
             type="button"
@@ -308,7 +308,7 @@ export function SettingsWorkspace() {
               type="button"
               onClick={saveFacebookInstagram}
               disabled={savingSection === "facebook"}
-              className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {savingSection === "facebook" ? "Saving..." : "Save Facebook & Instagram Credentials"}
             </button>
@@ -318,7 +318,7 @@ export function SettingsWorkspace() {
 
       <Panel
         title="WhatsApp Business"
-        description="Store the WhatsApp Cloud API access token and identifiers used by inbound and outbound WhatsApp messaging. WhatsApp uses the shared Meta webhook URL shown below."
+        description="WhatsApp Cloud API credentials and identifiers."
       >
         <div className="space-y-5">
           {whatsappNotice ? <NoticeBanner message={whatsappNotice} tone="success" /> : null}
@@ -375,7 +375,7 @@ export function SettingsWorkspace() {
               type="button"
               onClick={saveWhatsapp}
               disabled={savingSection === "whatsapp"}
-              className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {savingSection === "whatsapp" ? "Saving..." : "Save WhatsApp Credentials"}
             </button>
@@ -385,4 +385,3 @@ export function SettingsWorkspace() {
     </div>
   );
 }
-

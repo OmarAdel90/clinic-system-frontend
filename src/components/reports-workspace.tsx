@@ -188,7 +188,7 @@ export function ReportsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description={`Completed visit reports, doctor notes, and visit outcomes rendered in ${getBrowserTimeZone()}.`}
+        description={`Completed visit reports in ${getBrowserTimeZone()}.`}
       />
 
       {error ? (
@@ -205,7 +205,7 @@ export function ReportsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <Panel title="Report Queue" description="Search completed reports by patient, phone number, clinic, doctor, visit number, or report content.">
+        <Panel title="Report Queue" description="Search completed reports.">
           <div className="grid gap-3 md:grid-cols-3">
             <WorkflowInput label="Search" name="reports-search" value={search} onChange={setSearch} placeholder="Patient, phone, clinic, doctor, visit, diagnosis or notes" />
             <WorkflowSelect label="Clinic" value={clinicFilter} onChange={setClinicFilter} options={clinicOptions} emptyLabel="All clinics" />
@@ -267,7 +267,7 @@ export function ReportsWorkspace() {
           />
         </Panel>
 
-        <Panel title="What lives here" description="Reports are created when a confirmed visit is completed by the doctor.">
+        <Panel title="Reports" description="Created from completed visits.">
           <div className="space-y-3 text-sm leading-6 text-slate-600">
             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
               Treatment plans still define the care path. Reports capture what actually happened during a completed visit.
@@ -333,7 +333,7 @@ export function ReportsWorkspace() {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
-                    <Panel title="Clinical Summary" description="Doctor-authored diagnosis, notes, and report body.">
+                    <Panel title="Clinical Summary" description="Diagnosis, notes, and report body.">
                       <div className="space-y-4 text-sm text-slate-700">
                         <div>
                           <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Diagnosis</div>
@@ -357,7 +357,7 @@ export function ReportsWorkspace() {
                     </Panel>
 
                     <div className="space-y-5">
-                      <Panel title="Supplies Used" description="Actual consumables captured on the completed visit report.">
+                      <Panel title="Supplies Used" description="Consumables used in the visit.">
                         <div className="space-y-3">
                           {(selectedReport.supplies_used ?? []).length > 0 ? (
                             selectedReport.supplies_used?.map((item, index) => (
@@ -395,7 +395,7 @@ export function ReportsWorkspace() {
 
               {selectedView === "edit" ? (
                 <div className="space-y-5">
-                  <Panel title="Edit Report Notes" description="Update the doctor-written summary without re-running stock or billing logic.">
+                  <Panel title="Edit Report Notes" description="Update the report summary.">
                     {detailsError ? (
                       <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {detailsError}
@@ -411,7 +411,7 @@ export function ReportsWorkspace() {
                       <WorkflowTextarea label="Treatment Notes" value={editForm.treatment_notes} onChange={(value) => setEditForm((current) => ({ ...current, treatment_notes: value }))} placeholder="Treatment notes" />
                       <WorkflowTextarea label="Report Body" value={editForm.body} onChange={(value) => setEditForm((current) => ({ ...current, body: value }))} placeholder="Additional doctor notes and outcome details" />
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Changes"}
                         </button>
                       </div>
@@ -426,4 +426,3 @@ export function ReportsWorkspace() {
     </div>
   );
 }
-

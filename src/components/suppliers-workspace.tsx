@@ -622,7 +622,7 @@ export function SuppliersWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Suppliers"
-        description="Work suppliers like a CRM resource: search the directory first, then open a vendor popup for profile, warehouse batches, and payment position."
+        description="Manage suppliers, deliveries, and payments."
       />
 
       {error ? <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
@@ -636,7 +636,7 @@ export function SuppliersWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title="Supplier Directory" description="Search suppliers, then open one clean popup instead of living with a permanent split detail pane.">
+        <Panel title="Supplier Directory" description="Search and manage suppliers.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="supplier-search" value={search} onChange={setSearch} placeholder="Name, phone, or id" />
           </div>
@@ -674,11 +674,11 @@ export function SuppliersWorkspace() {
           )}
         </Panel>
 
-        <Panel title="Create Supplier" description="Add a new vendor to the directory before recording warehouse batches against it.">
+        <Panel title="Create Supplier" description="Add a supplier.">
           <form className="space-y-4" onSubmit={createSupplier}>
             <WorkflowInput label="Name" name="create-supplier-name" value={createSupplierForm.name} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, name: value }))} required />
             <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createSupplierForm.phone_number} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
-            <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
               {savingCreate ? "Saving..." : "Create Supplier"}
             </button>
           </form>
@@ -736,14 +736,14 @@ export function SuppliersWorkspace() {
                     <StatCard label="Open Balance" value={formatCompactMoney(selectedMetrics.openBalance)} hint="Outstanding balance from supplier payment history." />
                   </div>
 
-                  <Panel title="Supplier Profile" description="Keep supplier identity clean, then use the tabs for operational history.">
+                  <Panel title="Supplier Profile" description="Supplier details.">
                     <form className="space-y-4" onSubmit={updateSupplier}>
                       <div className="grid gap-4 md:grid-cols-2">
                         <WorkflowInput label="Name" name="edit-supplier-name" value={editSupplierForm.name} onChange={(value) => setEditSupplierForm((current) => ({ ...current, name: value }))} required />
                         <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editSupplierForm.phone_number} onChange={(value) => setEditSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Supplier"}
                         </button>
                         <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -760,7 +760,7 @@ export function SuppliersWorkspace() {
                   <div ref={transactionEditorRef} />
                   <Panel
                     title={editingTransactionId ? `Edit Batch #${editingTransactionId}` : "Record Batch"}
-                    description="Record what this supplier delivered to a warehouse. SKUs are pulled from the pharmaceutical catalog."
+                    description="Record what this supplier delivered."
                     actions={
                       editingTransactionId ? (
                         <button
@@ -821,13 +821,13 @@ export function SuppliersWorkspace() {
                         <span className="font-semibold text-slate-950">{formatExactMoney(formTotal(transactionForm))}</span>
                       </div>
 
-                      <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingTransaction ? "Saving..." : editingTransactionId ? "Save Batch" : "Record Batch"}
                       </button>
                     </form>
                   </Panel>
 
-                  <Panel title="Recent Batches" description="Recent warehouse deliveries from this supplier.">
+                  <Panel title="Recent Batches" description="Recent deliveries.">
                     <div className="space-y-3">
                       {supplierTransactions.map((transaction) => {
                         const units = (transaction.items_bought ?? []).reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
@@ -883,7 +883,7 @@ export function SuppliersWorkspace() {
               ) : null}
 
               {selectedView === "payments" ? (
-                <Panel title="Payment Position" description="Current payment records linked to this supplier's warehouse batches.">
+                <Panel title="Payment Position" description="Payments linked to this supplier.">
                   <div className="space-y-3">
                     {supplierPayments.map((payment) => (
                       <div key={payment.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
@@ -921,7 +921,7 @@ export function SuppliersWorkspace() {
                                 placeholder="Optional note"
                               />
                             </div>
-                            <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                            <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                               {payingId === payment.id ? "Saving..." : "Add Payment"}
                             </button>
                           </form>
@@ -962,4 +962,3 @@ export function SuppliersWorkspace() {
     </div>
   );
 }
-

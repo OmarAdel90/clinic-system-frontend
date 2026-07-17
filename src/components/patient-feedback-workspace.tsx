@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
@@ -258,7 +258,7 @@ export function PatientFeedbackWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Patient Feedback"
-        description={`Capture and review post-visit patient sentiment in ${getBrowserTimeZone()} with lead and clinic context attached.`}
+        description={`Patient feedback in ${getBrowserTimeZone()}.`}
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -272,7 +272,7 @@ export function PatientFeedbackWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Feedback Queue" description="Recent patient feedback with enough context to trace it back to the lead and clinic.">
+        <Panel title="Feedback Queue" description="Recent patient feedback.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="feedback-search" value={search} onChange={setSearch} placeholder="Lead, clinic, feedback text, or id" />
           </div>
@@ -303,7 +303,7 @@ export function PatientFeedbackWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create Feedback" description="Capture a new patient feedback note tied to a lead and clinic.">
+          <Panel title="Create Feedback" description="Add patient feedback.">
             <form className="space-y-4" onSubmit={createFeedback}>
               <WorkflowSelect label="Lead" value={createForm.lead_id} onChange={(value) => setCreateForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: String(lead.id) }))} required />
               <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={createClinicOptions} required allowEmpty={false} />
@@ -313,7 +313,7 @@ export function PatientFeedbackWorkspace() {
                 </div>
               ) : null}
               <WorkflowTextarea label="Feedback Body" value={createForm.feedback_body} onChange={(value) => setCreateForm((current) => ({ ...current, feedback_body: value }))} placeholder="Patient comments, satisfaction notes, concerns, or follow-up sentiment" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Feedback"}
               </button>
             </form>
@@ -370,7 +370,7 @@ export function PatientFeedbackWorkspace() {
                     <StatCard label="Feedback Id" value={selectedFeedback.id} hint="Internal reference id." />
                   </div>
 
-                  <Panel title="Feedback Body" description="Captured patient sentiment and comments.">
+                  <Panel title="Feedback Body" description="Comments.">
                     <div className="text-sm leading-6 text-slate-700">{selectedFeedback.feedback_body || "No feedback body recorded."}</div>
                   </Panel>
                 </div>
@@ -378,12 +378,12 @@ export function PatientFeedbackWorkspace() {
 
               {selectedView === "edit" ? (
                 <div className="space-y-5">
-                  <Panel title="Edit Feedback" description="Update clinic context or revise the feedback body.">
+                  <Panel title="Edit Feedback" description="Update the feedback.">
                     <form className="space-y-4" onSubmit={updateFeedback}>
                       <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={editClinicOptions} required allowEmpty={false} />
                       <WorkflowTextarea label="Feedback Body" value={editForm.feedback_body} onChange={(value) => setEditForm((current) => ({ ...current, feedback_body: value }))} />
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Changes"}
                         </button>
                         <button type="button" onClick={() => void deleteFeedback(selectedFeedback.id)} disabled={deletingId === selectedFeedback.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -401,4 +401,3 @@ export function PatientFeedbackWorkspace() {
     </div>
   );
 }
-

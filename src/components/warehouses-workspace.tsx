@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
@@ -302,7 +302,7 @@ export function WarehousesWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Warehouses"
-        description="Track available versus reserved stock by clinic and see how treatment plans and visit flow are consuming supply capacity."
+        description="Track stock, reservations, and linked clinic usage."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -317,7 +317,7 @@ export function WarehousesWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Warehouse Directory" description="Warehouse records tied to clinics with immediate stock pressure context.">
+        <Panel title="Warehouse Directory" description="Search and manage warehouses.">
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             <WorkflowInput label="Search" name="warehouse-search" value={search} onChange={setSearch} placeholder="Warehouse, clinic, or id" />
             <WorkflowSelect
@@ -359,11 +359,11 @@ export function WarehousesWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create Warehouse" description="Only medication-enabled clinics without a warehouse are available here.">
+          <Panel title="Create Warehouse" description="Add a warehouse for an eligible clinic.">
             <form className="space-y-4" onSubmit={createWarehouse}>
               <WorkflowInput label="Warehouse Name" name="create-warehouse-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
               <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={eligibleCreateClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Warehouse"}
               </button>
             </form>
@@ -423,7 +423,7 @@ export function WarehousesWorkspace() {
                     <StatCard label="Related Visits" value={relatedVisits.length} hint="Visits tied to this clinic." />
                     <StatCard label="Treatment Plans" value={relatedPlans.length} hint="Plans tied to this clinic." />
                   </div>
-                  <Panel title="Warehouse Profile" description="Quick reference for the linked clinic and current warehouse role.">
+                  <Panel title="Warehouse Profile" description="Linked clinic and warehouse details.">
                     <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
                       <div>Name: {selectedWarehouse.name}</div>
                       <div>Clinic: {selectedWarehouse.clinic?.name || "Not linked"}</div>
@@ -436,12 +436,12 @@ export function WarehousesWorkspace() {
 
               {selectedWarehouseView === "settings" ? (
                 <div className="space-y-5">
-                <Panel title="Warehouse Settings" description="Rename the warehouse or move it between eligible clinics.">
+                <Panel title="Warehouse Settings" description="Update warehouse details.">
                   <form className="space-y-4" onSubmit={updateWarehouse}>
                     <WorkflowInput label="Warehouse Name" name="edit-warehouse-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
                     <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteWarehouse(selectedWarehouse.id)} disabled={deletingId === selectedWarehouse.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -455,7 +455,7 @@ export function WarehousesWorkspace() {
 
               {selectedWarehouseView === "inventory" ? (
                 <div className="space-y-5">
-                <Panel title="Stock Health" description="Available versus reserved stock for the selected warehouse.">
+                <Panel title="Stock Health" description="Available and reserved stock.">
                   <div className="space-y-3">
                     {pressureRows.map((row) => (
                       <div key={row.sku} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -488,7 +488,7 @@ export function WarehousesWorkspace() {
 
               {selectedWarehouseView === "demand" ? (
                 <div className="space-y-5">
-                <Panel title="Linked Work" description="Visits and treatment plans currently drawing against this warehouse.">
+                <Panel title="Linked Work" description="Linked visits and treatment plans.">
                   <div className="space-y-4">
                     <div className="rounded-xl border border-[var(--line)] bg-white p-4">
                       <div className="text-sm font-semibold text-slate-950">Related Visits</div>
@@ -538,4 +538,3 @@ export function WarehousesWorkspace() {
     </div>
   );
 }
-

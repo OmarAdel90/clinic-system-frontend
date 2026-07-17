@@ -365,7 +365,7 @@ export function CampaignsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Campaigns"
-        description="Keep lead acquisition sources readable: campaign setup stays on the page, and each record opens in a focused popup instead of a permanent second pane."
+        description="Manage imported and manual campaigns."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -382,7 +382,7 @@ export function CampaignsWorkspace() {
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Panel
           title="Campaign List"
-          description="Search the imported/local campaign list, then open a campaign popup to inspect or update it."
+          description="Search and manage campaigns."
           actions={
             <button
               type="button"
@@ -428,7 +428,7 @@ export function CampaignsWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Import From Selected Meta Ad Account" description="The ad account is chosen in Settings. Pull its campaigns here, then import only the ones you want visible in the system.">
+          <Panel title="Import From Selected Meta Ad Account" description="Pull campaigns from the selected Meta ad account.">
             <div className="space-y-4">
               {metaError ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{metaError}</div> : null}
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
@@ -454,7 +454,7 @@ export function CampaignsWorkspace() {
                     type="button"
                     onClick={() => void importSelectedMetaCampaigns()}
                     disabled={importingMeta || selectedMetaCampaignIds.length === 0}
-                    className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
+                    className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                   >
                     {importingMeta ? "Importing..." : `Import Selected (${selectedMetaCampaignIds.length})`}
                   </button>
@@ -519,7 +519,7 @@ export function CampaignsWorkspace() {
             </div>
           </Panel>
 
-          <Panel title="Create Campaign" description="Manual campaigns still work for non-Meta sources or internal tracking. Imported Meta campaigns automatically keep Meta's own campaign id.">
+          <Panel title="Create Campaign" description="Add a manual campaign.">
             <form className="space-y-4" onSubmit={createCampaign}>
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowInput label="Name" name="create-campaign-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
@@ -531,7 +531,7 @@ export function CampaignsWorkspace() {
                 <WorkflowSelect label="Status" value={createForm.status} onChange={(value) => setCreateForm((current) => ({ ...current, status: value }))} options={statusOptions} emptyLabel="No status" />
               </div>
               <WorkflowTextarea label="Description" value={createForm.description} onChange={(value) => setCreateForm((current) => ({ ...current, description: value }))} placeholder="Acquisition goal, targeting notes, or messaging context" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Campaign"}
               </button>
             </form>
@@ -567,7 +567,7 @@ export function CampaignsWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="Campaign Details" description="Update campaign naming, timing, budget, and context without leaving the list view.">
+                <Panel title="Campaign Details" description="Update campaign details.">
                   <div className="mb-4 flex flex-wrap gap-3 text-xs text-slate-500">
                     <span>Campaign ID {selectedCampaign.id}</span>
                     {selectedCampaign.ad_account_name ? <span>{selectedCampaign.ad_account_name}</span> : selectedCampaign.ad_account_id ? <span>Ad Account {selectedCampaign.ad_account_id}</span> : null}
@@ -596,7 +596,7 @@ export function CampaignsWorkspace() {
                     </div>
                     <WorkflowTextarea label="Description" value={editForm.description} onChange={(value) => setEditForm((current) => ({ ...current, description: value }))} />
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteCampaign(selectedCampaign.id)} disabled={deletingId === selectedCampaign.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -608,7 +608,7 @@ export function CampaignsWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="Ad Sets" description="Imported ad sets nested under this campaign from the selected Meta ad account.">
+                <Panel title="Ad Sets" description="Imported ad sets for this campaign.">
                   {selectedCampaign.ad_sets?.length ? (
                     <div className="space-y-3">
                       {selectedCampaign.ad_sets.map((adSet) => (
@@ -641,4 +641,3 @@ export function CampaignsWorkspace() {
     </div>
   );
 }
-

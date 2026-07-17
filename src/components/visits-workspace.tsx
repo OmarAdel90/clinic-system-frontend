@@ -409,7 +409,7 @@ export function VisitsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Visits"
-        description={`Use visits as the operations board for scheduling, confirmations, completions, and exception handling in ${getBrowserTimeZone()}.`}
+        description={`Visit operations in ${getBrowserTimeZone()}.`}
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -423,7 +423,7 @@ export function VisitsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Panel title="Visit Queue" description="Cross-plan operations board for clinic teams. Open a visit popup to work the details.">
+        <Panel title="Visit Queue" description="Scheduled and active visits.">
           <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <WorkflowInput label="Search" name="visit-search" value={search} onChange={setSearch} placeholder="Lead, clinic, user, visit number, or id" />
             <WorkflowSelect
@@ -495,7 +495,7 @@ export function VisitsWorkspace() {
           )}
         </Panel>
 
-        <Panel title="Schedule Visit" description="Create a visit using the cleaned backend contract.">
+        <Panel title="Schedule Visit" description="Create a visit.">
           <form className="space-y-4" onSubmit={handleCreate}>
             <WorkflowSelect
               label="Lead"
@@ -536,7 +536,7 @@ export function VisitsWorkspace() {
               />
             </div>
             <WorkflowInput label="Visit Date" name="visit_date" type="datetime-local" value={form.visit_date} onChange={(value) => setForm((current) => ({ ...current, visit_date: value }))} required />
-            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
               {saving ? "Scheduling..." : "Schedule Visit"}
             </button>
           </form>
@@ -594,7 +594,7 @@ export function VisitsWorkspace() {
               {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedVisitView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Visit Summary" description="Core schedule, ownership, and status information.">
+                  <Panel title="Visit Summary" description="Schedule, owner, and status.">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-slate-950">{selectedVisit.visit_number || `Visit #${selectedVisit.id}`}</div>
@@ -640,7 +640,7 @@ export function VisitsWorkspace() {
                     </div>
                   </Panel>
 
-                  <Panel title="Completion Output" description="Report and invoice context generated after visit completion.">
+                  <Panel title="Completion Output" description="Generated report and invoice.">
                     {selectedVisit.report ? (
                       <div className="grid gap-3 text-sm text-slate-600">
                         <div>Diagnosis: {selectedVisit.report.diagnosis || "-"}</div>
@@ -658,7 +658,7 @@ export function VisitsWorkspace() {
 
               {selectedVisitView === "edit" ? (
                 <div className="space-y-5">
-                  <Panel title="Visit Settings" description="Update the selected visit without leaving the operations board.">
+                  <Panel title="Visit Settings" description="Update visit details.">
                     <form className="space-y-4" onSubmit={handleUpdate}>
                       <div className="grid gap-4 md:grid-cols-2">
                         <WorkflowSelect label="Lead" value={editForm.lead_id} onChange={(value) => setEditForm((current) => ({ ...current, lead_id: value }))} options={leads.map((lead) => ({ label: lead.name || lead.profile_name || `Lead #${lead.id}`, value: String(lead.id) }))} required />
@@ -689,7 +689,7 @@ export function VisitsWorkspace() {
                         <WorkflowInput label="Visit Date" name="edit-visit-date" type="datetime-local" value={editForm.visit_date} onChange={(value) => setEditForm((current) => ({ ...current, visit_date: value }))} required />
                       </div>
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Visit Changes"}
                         </button>
                         <button type="button" onClick={() => void deleteVisit(selectedVisit.id)} disabled={deletingVisit === selectedVisit.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -703,7 +703,7 @@ export function VisitsWorkspace() {
 
               {selectedVisitView === "supplies" ? (
                 <div className="space-y-5">
-                  <Panel title="Reserved Supplies" description="Supplies currently held for this visit.">
+                  <Panel title="Reserved Supplies" description="Supplies reserved for this visit.">
                     <div className="space-y-2">
                       {(selectedVisit.supplies_reserved ?? []).map((item, index) => (
                         <div key={`${selectedVisit.id}-reserved-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-slate-700">
@@ -720,7 +720,7 @@ export function VisitsWorkspace() {
               {selectedVisitView === "complete" ? (
                 <div className="space-y-5">
                   {selectedVisit.status === "confirmed" ? (
-                    <Panel title="Complete Visit" description="Finish a confirmed visit and hand it into report and invoice generation.">
+                    <Panel title="Complete Visit" description="Complete the visit.">
                       {(() => {
                         const completeForm = completeForms[selectedVisit.id] ?? initialCompleteForm;
                         return (
@@ -754,7 +754,7 @@ export function VisitsWorkspace() {
                               {completeForm.supplies_used.length === 0 ? <div className="text-sm text-slate-500">If left empty, the backend will use the reserved supplies automatically.</div> : null}
                             </div>
 
-                            <button type="button" onClick={() => void completeVisit(selectedVisit.id)} disabled={activeVisit === selectedVisit.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                            <button type="button" onClick={() => void completeVisit(selectedVisit.id)} disabled={activeVisit === selectedVisit.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                               {activeVisit === selectedVisit.id ? "Working..." : "Complete Visit"}
                             </button>
                           </div>
@@ -762,7 +762,7 @@ export function VisitsWorkspace() {
                       })()}
                     </Panel>
                   ) : (
-                    <Panel title="Complete Visit" description="Finish a confirmed visit and hand it into report and invoice generation.">
+                    <Panel title="Complete Visit" description="Complete the visit.">
                       <div className="text-sm text-slate-500">Only confirmed visits can be completed.</div>
                     </Panel>
                   )}
@@ -775,4 +775,3 @@ export function VisitsWorkspace() {
     </div>
   );
 }
-

@@ -460,7 +460,7 @@ export function ClinicsWorkspace() {
     <div className="space-y-6">
       <PageHeader
         title="Clinics"
-        description="Maintain clinic master data, services, staffing, and warehouse linkage so the rest of the workflow has a clean operational backbone."
+        description="Manage clinics, services, staff, and warehouse links."
       />
 
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
@@ -474,7 +474,7 @@ export function ClinicsWorkspace() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Panel title="Clinic List" description="Search branches, then open a focused popup to manage staffing, services, and warehouse linkage.">
+        <Panel title="Clinic List" description="Search and manage clinics.">
           <div className="mb-4">
             <WorkflowInput label="Search" name="clinic-search" value={search} onChange={setSearch} placeholder="Name, phone, address, service, or id" />
           </div>
@@ -529,7 +529,7 @@ export function ClinicsWorkspace() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Create Clinic" description="Set up branch details, departments, and available services.">
+          <Panel title="Create Clinic" description="Add a clinic and its services.">
             <form className="space-y-4" onSubmit={createClinic}>
               <div className="grid gap-4 md:grid-cols-2">
                 <WorkflowInput label="Name" name="create-clinic-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} placeholder="Clinic name" required />
@@ -541,7 +541,7 @@ export function ClinicsWorkspace() {
               <WorkflowTextarea label="Departments" value={createForm.departments} onChange={(value) => setCreateForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
               {renderServiceEditor(createForm, setCreateForm)}
               {renderDoctorPicker(createForm, setCreateForm)}
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Clinic"}
               </button>
             </form>
@@ -580,7 +580,7 @@ export function ClinicsWorkspace() {
               </div>
 
               <div className="mt-5">
-                <Panel title="Clinic Details" description="Adjust branch details, staffing, and warehouse linkage without leaving the list view.">
+                <Panel title="Clinic Details" description="Update clinic details, staff, and warehouse link.">
                   <form className="space-y-4" onSubmit={updateClinic}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <WorkflowInput label="Name" name="edit-clinic-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} placeholder="Clinic name" required />
@@ -599,7 +599,7 @@ export function ClinicsWorkspace() {
                     {renderServiceEditor(editForm, setEditForm)}
                     {renderDoctorPicker(editForm, setEditForm)}
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteClinic(selectedClinic.id)} disabled={deletingId === selectedClinic.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -616,4 +616,3 @@ export function ClinicsWorkspace() {
     </div>
   );
 }
-
