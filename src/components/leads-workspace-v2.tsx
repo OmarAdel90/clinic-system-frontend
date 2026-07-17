@@ -13,6 +13,7 @@ import { WorkflowInput } from "@/components/workflow-input";
 import { WorkflowSelect } from "@/components/workflow-select";
 import { StatCard } from "@/components/stat-card";
 import { PaginationControls } from "@/components/pagination-controls";
+import { useLocale } from "@/components/locale-provider";
 
 type LeadForm = {
   campaign_id: string;
@@ -61,6 +62,7 @@ function buildSearchPath(search: string) {
 }
 
 export function LeadsWorkspaceV2() {
+  const { t } = useLocale();
   const searchParams = useSearchParams();
   const leadFromQuery = searchParams.get("lead");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -338,8 +340,8 @@ export function LeadsWorkspaceV2() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Leads"
-        description="Manage lead intake, assignment, and clinic handoff."
+        title={t("Leads")}
+        description={t("Manage lead intake, assignment, and clinic handoff.")}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -347,14 +349,14 @@ export function LeadsWorkspaceV2() {
               onClick={() => setCreateOpen(true)}
               className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
             >
-              New Lead
+              {t("New Lead")}
             </button>
             <button
               type="button"
               onClick={() => void loadLeadRows(search, leadPage, { silent: true })}
               className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              {refreshing ? "Refreshing..." : "Refresh"}
+              {refreshing ? t("Refreshing...") : t("Refresh")}
             </button>
           </div>
         }
@@ -364,45 +366,45 @@ export function LeadsWorkspaceV2() {
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{notice}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total Leads" value={stats.total} hint="Pipeline records currently visible to your role." />
-        <StatCard label="Assigned Leads" value={stats.assignedCount} hint="Leads already routed to a specific user." />
-        <StatCard label="Clinic Handoffs" value={stats.clinicCount} hint="Leads already linked to a clinic for treatment ownership." />
-        <StatCard label="Linked Conversations" value={stats.conversationCount} hint="CRM conversations currently attached to the loaded leads." />
-        <StatCard label="Leads With Records" value={stats.medicalRecordLeadCount} hint="Leads that already have at least one medical record on file." />
+        <StatCard label={t("Total Leads")} value={stats.total} hint={t("Pipeline records currently visible to your role.")} />
+        <StatCard label={t("Assigned Leads")} value={stats.assignedCount} hint={t("Leads already routed to a specific user.")} />
+        <StatCard label={t("Clinic Handoffs")} value={stats.clinicCount} hint={t("Leads already linked to a clinic for treatment ownership.")} />
+        <StatCard label={t("Linked Conversations")} value={stats.conversationCount} hint={t("CRM conversations currently attached to the loaded leads.")} />
+        <StatCard label={t("Leads With Records")} value={stats.medicalRecordLeadCount} hint={t("Leads that already have at least one medical record on file.")} />
       </div>
 
-      <Panel title="Lead Queue" description="Recent leads and routing status.">
+      <Panel title={t("Lead Queue")} description={t("Recent leads and routing status.")}>
         <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <WorkflowInput label="Search" name="search" value={search} onChange={setSearch} placeholder="Name, phone, platform, or lead id" />
+          <WorkflowInput label={t("Search")} name="search" value={search} onChange={setSearch} placeholder={t("Name, phone, platform, or lead id")} />
           <WorkflowSelect
-            label="Status"
+            label={t("Status")}
             value={statusFilter}
             onChange={setStatusFilter}
-            options={[{ label: "All statuses", value: "all" }, ...statuses.map((status) => ({ label: status.label, value: status.key || String(status.id) }))]}
+            options={[{ label: t("All statuses"), value: "all" }, ...statuses.map((status) => ({ label: status.label, value: status.key || String(status.id) }))]}
           />
           <WorkflowSelect
-            label="Assignment Status"
+            label={t("Assignment Status")}
             value={assignmentStatusFilter}
             onChange={setAssignmentStatusFilter}
             options={[
-              { label: "All leads", value: "all" },
-              { label: "Assigned", value: "assigned" },
-              { label: "Unassigned", value: "unassigned" },
+              { label: t("All leads"), value: "all" },
+              { label: t("Assigned"), value: "assigned" },
+              { label: t("Unassigned"), value: "unassigned" },
             ]}
           />
           <WorkflowSelect
-            label="Clinic Assigned Status"
+            label={t("Clinic Assigned Status")}
             value={clinicAssignedStatusFilter}
             onChange={setClinicAssignedStatusFilter}
             options={[
-              { label: "All leads", value: "all" },
-              { label: "Assigned", value: "assigned" },
-              { label: "Unassigned", value: "unassigned" },
+              { label: t("All leads"), value: "all" },
+              { label: t("Assigned"), value: "assigned" },
+              { label: t("Unassigned"), value: "unassigned" },
             ]}
           />
         </div>
 
-        {loading ? <div className="text-sm text-slate-500">Loading leads...</div> : null}
+        {loading ? <div className="text-sm text-slate-500">{t("Loading leads...")}</div> : null}
 
         {!loading ? (
           <div className="space-y-3">
@@ -424,30 +426,30 @@ export function LeadsWorkspaceV2() {
                     <div>
                         <div className="text-sm font-semibold">{getLeadDisplayName(lead)}</div>
                       <div className={`mt-1 text-sm ${active ? "text-slate-200" : "text-slate-600"}`}>
-                        {lead.phone || "No phone"} | {lead.platform || "Unknown channel"}
+                        {lead.phone || t("No phone")} | {lead.platform || t("Unknown channel")}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {medicalRecordCount > 0 ? (
                         <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-white/10 text-white" : "bg-emerald-50 text-emerald-700"}`}>
-                          {medicalRecordCount} record{medicalRecordCount === 1 ? "" : "s"}
+                          {medicalRecordCount} {medicalRecordCount === 1 ? t("record") : t("records")}
                         </span>
                       ) : null}
-                      <StatusBadge value={getLeadStatusDisplay(lead)} color={getLeadStatusColor(lead)} />
+                      <StatusBadge value={t(getLeadStatusDisplay(lead))} color={getLeadStatusColor(lead)} />
                       <span className={`text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>#{lead.id}</span>
                     </div>
                   </div>
                   <div className={`mt-3 grid gap-2 text-xs md:grid-cols-4 ${active ? "text-slate-300" : "text-slate-500"}`}>
-                    <div>Agent: {assignedUserName || "Unassigned"}</div>
-                    <div>Clinic: {lead.clinic?.name || "Not linked"}</div>
-                    <div>Records: {medicalRecordCount}</div>
-                    <div>Created: {formatLocalDateTime(lead.created_at)}</div>
+                    <div>{t("Agent")}: {assignedUserName || t("Unassigned")}</div>
+                    <div>{t("Clinic")}: {lead.clinic?.name || t("Not linked")}</div>
+                    <div>{t("Records")}: {medicalRecordCount}</div>
+                    <div>{t("Created")}: {formatLocalDateTime(lead.created_at)}</div>
                   </div>
                 </button>
               );
             })}
-            {paginatedLeads.length === 0 ? <div className="text-sm text-slate-500">No leads match the current filters.</div> : null}
-            <PaginationControls page={leadPage} totalPages={leadTotalPages} totalItems={leadTotalItems} pageSize={LEADS_PAGE_SIZE} itemLabel="leads" onPageChange={(page) => void loadLeadRows(search, page)} />
+            {paginatedLeads.length === 0 ? <div className="text-sm text-slate-500">{t("No leads match the current filters.")}</div> : null}
+            <PaginationControls page={leadPage} totalPages={leadTotalPages} totalItems={leadTotalItems} pageSize={LEADS_PAGE_SIZE} itemLabel={t("leads")} onPageChange={(page) => void loadLeadRows(search, page)} />
           </div>
         ) : null}
       </Panel>
@@ -457,15 +459,15 @@ export function LeadsWorkspaceV2() {
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]">
             <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-5 py-4">
               <div className="min-w-0 flex-1">
-                <div className="text-lg font-semibold text-slate-950">Create Lead</div>
-                <div className="mt-1 text-sm text-slate-600">Manual intake for phone, channel, optional campaign, and starting pipeline status.</div>
+                <div className="text-lg font-semibold text-slate-950">{t("Create Lead")}</div>
+                <div className="mt-1 text-sm text-slate-600">{t("Manual intake for phone, channel, optional campaign, and starting pipeline status.")}</div>
               </div>
               <button
                 type="button"
                 onClick={() => setCreateOpen(false)}
                 className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Close
+                {t("Close")}
               </button>
             </div>
 
@@ -474,14 +476,14 @@ export function LeadsWorkspaceV2() {
               {createNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{createNotice}</div> : null}
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <WorkflowSelect
-                  label="Campaign"
+                  label={t("Campaign")}
                   value={form.campaign_id}
                   onChange={(value) => setForm((current) => ({ ...current, campaign_id: value }))}
                   options={campaigns.map((campaign) => ({ label: campaign.name, value: String(campaign.id) }))}
-                  emptyLabel="No campaign"
+                  emptyLabel={t("No campaign")}
                 />
                 <WorkflowSelect
-                  label="Platform"
+                  label={t("Platform")}
                   value={form.platform}
                   onChange={(value) => setForm((current) => ({ ...current, platform: value }))}
                   options={[
@@ -496,15 +498,15 @@ export function LeadsWorkspaceV2() {
                   ]}
                   required
                 />
-                <WorkflowInput label="Phone" name="phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="2010..." required />
-                <WorkflowInput label="Name" name="name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder="Patient name" required />
+                <WorkflowInput label={t("Phone")} name="phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} placeholder="2010..." required />
+                <WorkflowInput label={t("Name")} name="name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} placeholder={t("Patient name")} required />
                 {statuses.length > 0 ? (
                   <WorkflowSelect
-                    label="Lead Status"
+                    label={t("Lead Status")}
                     value={form.lead_status_id}
                     onChange={(value) => setForm((current) => ({ ...current, lead_status_id: value }))}
                     options={statuses.map((status) => ({ label: status.label, value: String(status.id) }))}
-                    emptyLabel="No status"
+                    emptyLabel={t("No status")}
                   />
                 ) : null}
                 <button
@@ -512,7 +514,7 @@ export function LeadsWorkspaceV2() {
                   disabled={saving}
                   className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                 >
-                  {saving ? "Creating..." : "Create Lead"}
+                  {saving ? t("Creating...") : t("Create Lead")}
                 </button>
               </form>
             </div>
@@ -527,8 +529,8 @@ export function LeadsWorkspaceV2() {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-lg font-semibold text-slate-950">{getLeadDisplayName(selectedLead)}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
-                  <span>{selectedLead.phone || "No phone"}</span>
-                  <span>{selectedLead.platform || "Unknown channel"}</span>
+                  <span>{selectedLead.phone || t("No phone")}</span>
+                  <span>{selectedLead.platform || t("Unknown channel")}</span>
                   {selectedLead.clinic?.name ? <span>{selectedLead.clinic.name}</span> : null}
                 </div>
               </div>
@@ -537,16 +539,16 @@ export function LeadsWorkspaceV2() {
                 onClick={() => setDetailsOpen(false)}
                 className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                Close
+                {t("Close")}
               </button>
             </div>
 
             <div className="border-b border-[var(--line)] px-5 py-3">
               <div className="flex flex-wrap gap-2">
                 {[
-                  { key: "overview", label: "Overview" },
-                  { key: "conversations", label: "Conversation" },
-                  { key: "actions", label: "Actions" },
+                  { key: "overview", label: t("Overview") },
+                  { key: "conversations", label: t("Conversation") },
+                  { key: "actions", label: t("Actions") },
                 ].map((tab) => {
                   const active = selectedLeadView === tab.key;
                   return (
@@ -568,21 +570,21 @@ export function LeadsWorkspaceV2() {
               {detailsNotice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">{detailsNotice}</div> : null}
               {selectedLeadView === "overview" ? (
                 <div className="space-y-5">
-                  <Panel title="Profile" description="Lead status and routing details.">
+                  <Panel title={t("Profile")} description={t("Lead status and routing details.")}>
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-slate-950">{getLeadDisplayName(selectedLead)}</div>
-                        <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || "No phone"} {selectedLead.platform ? `• ${selectedLead.platform}` : ""}</div>
+                        <div className="mt-1 text-sm text-slate-600">{selectedLead.phone || t("No phone")} {selectedLead.platform ? `• ${selectedLead.platform}` : ""}</div>
                       </div>
-                      <StatusBadge value={getLeadStatusDisplay(selectedLead)} color={getLeadStatusColor(selectedLead)} />
+                      <StatusBadge value={t(getLeadStatusDisplay(selectedLead))} color={getLeadStatusColor(selectedLead)} />
                     </div>
 
                     <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-                      <div>Created: {formatLocalDateTime(selectedLead.created_at)}</div>
-                      <div>Clinic handoff: {formatLocalDateTime(selectedLead.clinic_assigned_at)}</div>
-                      <div>Assigned clinic: {selectedLead.clinic?.name || "Not linked yet"}</div>
-                      <div>Linked conversations: {selectedLead.conversations?.length ?? 0}</div>
-                      <div>Medical records: {selectedLead.medical_records_count ?? 0}</div>
+                      <div>{t("Created")}: {formatLocalDateTime(selectedLead.created_at)}</div>
+                      <div>{t("Clinic handoff")}: {formatLocalDateTime(selectedLead.clinic_assigned_at)}</div>
+                      <div>{t("Assigned clinic")}: {selectedLead.clinic?.name || t("Not linked yet")}</div>
+                      <div>{t("Linked conversations")}: {selectedLead.conversations?.length ?? 0}</div>
+                      <div>{t("Medical records")}: {selectedLead.medical_records_count ?? 0}</div>
                     </div>
 
                     <div className="mt-4">
@@ -590,7 +592,7 @@ export function LeadsWorkspaceV2() {
                         href={`/medical-records?lead=${selectedLead.id}`}
                         className="inline-flex rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                       >
-                        Open Medical Records
+                        {t("Open Medical Records")}
                       </Link>
                     </div>
                   </Panel>
@@ -599,23 +601,23 @@ export function LeadsWorkspaceV2() {
 
               {selectedLeadView === "conversations" ? (
                 <div className="space-y-5">
-                  <Panel title="Conversation" description="Linked conversation history.">
+                  <Panel title={t("Conversation")} description={t("Linked conversation history.")}>
                     <div className="space-y-3">
                       {(selectedLead.conversations ?? []).map((conversation: Conversation) => (
                         <Link key={conversation.id} href={`/agent?conversation=${conversation.id}`} className="block rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 transition hover:border-slate-300 hover:bg-white">
                           <div className="flex items-center justify-between gap-3">
-                            <div className="text-sm font-medium text-slate-900">Conversation #{conversation.id}</div>
-                            <StatusBadge value={conversation.lead_status || conversation.status || "active"} />
+                            <div className="text-sm font-medium text-slate-900">{t("Conversation")} #{conversation.id}</div>
+                            <StatusBadge value={t(conversation.lead_status || conversation.status || "active")} />
                           </div>
                           <div className="mt-2 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                            <div>First touch: {formatLocalDateTime(conversation.first_message_time)}</div>
-                            <div>Last touch: {formatLocalDateTime(conversation.last_message_time)}</div>
-                            <div>Converted: {formatLocalDateTime(conversation.converted_at)}</div>
-                            <div>{formatRelativeDateLabel(conversation.last_message_time)}</div>
+                            <div>{t("First touch")}: {formatLocalDateTime(conversation.first_message_time)}</div>
+                            <div>{t("Last touch")}: {formatLocalDateTime(conversation.last_message_time)}</div>
+                            <div>{t("Converted")}: {formatLocalDateTime(conversation.converted_at)}</div>
+                            <div>{t(formatRelativeDateLabel(conversation.last_message_time))}</div>
                           </div>
                         </Link>
                       ))}
-                      {(selectedLead.conversations?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">No conversations linked to this lead yet.</div> : null}
+                      {(selectedLead.conversations?.length ?? 0) === 0 ? <div className="text-sm text-slate-500">{t("No conversations linked to this lead yet.")}</div> : null}
                     </div>
                   </Panel>
                 </div>
@@ -623,10 +625,10 @@ export function LeadsWorkspaceV2() {
 
               {selectedLeadView === "actions" ? (
                 <div className="space-y-5">
-                  <Panel title="Actions" description="Update and save lead details.">
+                  <Panel title={t("Actions")} description={t("Update and save lead details.")}>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
                       <WorkflowSelect
-                        label="Assigned User"
+                        label={t("Assigned User")}
                         value={assignments[selectedLead.id]?.userId ?? (selectedLead.assignment_state?.user_id ? String(selectedLead.assignment_state.user_id) : "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
@@ -639,13 +641,13 @@ export function LeadsWorkspaceV2() {
                           }))
                         }
                         options={[
-                          { label: "Next in queue", value: NEXT_QUEUE_OPTION },
+                          { label: t("Next in queue"), value: NEXT_QUEUE_OPTION },
                           ...users.map((user) => ({ label: user.name, value: String(user.id) })),
                         ]}
-                        emptyLabel="Unassigned"
+                        emptyLabel={t("Unassigned")}
                       />
                       <WorkflowSelect
-                        label="Assigned Clinic"
+                        label={t("Assigned Clinic")}
                         value={assignments[selectedLead.id]?.clinicId ?? (selectedLead.clinic_id ? String(selectedLead.clinic_id) : "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
@@ -658,13 +660,13 @@ export function LeadsWorkspaceV2() {
                           }))
                         }
                         options={clinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))}
-                        emptyLabel="Unassigned"
+                        emptyLabel={t("Unassigned")}
                       />
                     </div>
 
                     <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto] xl:grid-cols-1 xl:items-end">
                       <WorkflowSelect
-                        label="Lead Status"
+                        label={t("Lead Status")}
                         value={assignments[selectedLead.id]?.leadStatusId ?? String(selectedLead.lead_status_id ?? "")}
                         onChange={(value) =>
                           setAssignments((current) => ({
@@ -684,7 +686,7 @@ export function LeadsWorkspaceV2() {
                         disabled={updatingLeadId === selectedLead.id || statuses.length === 0}
                         className="rounded-lg border border-[var(--line)] bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {updatingLeadId === selectedLead.id ? "Saving..." : "Save Changes"}
+                        {updatingLeadId === selectedLead.id ? t("Saving...") : t("Save Changes")}
                       </button>
                     </div>
 
@@ -695,7 +697,7 @@ export function LeadsWorkspaceV2() {
                         disabled={deletingLeadId === selectedLead.id}
                         className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {deletingLeadId === selectedLead.id ? "Deleting..." : "Delete Lead"}
+                        {deletingLeadId === selectedLead.id ? t("Deleting...") : t("Delete Lead")}
                       </button>
                     </div>
                   </Panel>

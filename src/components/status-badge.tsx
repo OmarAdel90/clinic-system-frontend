@@ -1,4 +1,8 @@
-﻿type StatusBadgeProps = {
+"use client";
+
+import { useLocale } from "@/components/locale-provider";
+
+type StatusBadgeProps = {
   value?: string | null;
   color?: string | null;
 };
@@ -22,16 +26,18 @@ const colorMap: Record<string, string> = {
 };
 
 export function StatusBadge({ value, color }: StatusBadgeProps) {
+  const { t } = useLocale();
   const normalized = value?.toLowerCase() ?? "unknown";
   const classes = color ? "text-white" : colorMap[normalized] ?? "bg-slate-100 text-slate-700";
   const style = color ? { backgroundColor: color } : undefined;
+  const label = value ?? "Unknown";
 
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${classes}`}
       style={style}
     >
-      {value ?? "Unknown"}
+      {t(label)}
     </span>
   );
 }

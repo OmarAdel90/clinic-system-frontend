@@ -142,7 +142,7 @@ export function WorkflowSelect({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectOption(option)}
-                  className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 transition last:border-b-0 hover:bg-slate-50"
+                  className={`block w-full border-b border-slate-100 px-3 py-2 text-sm text-slate-700 transition last:border-b-0 hover:bg-slate-50 ${isRTL ? "text-right" : "text-left"}`}
                 >
                   <div className="break-words leading-5">{t(option.label)}</div>
                 </button>
