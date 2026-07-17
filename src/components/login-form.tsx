@@ -4,8 +4,10 @@ import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@/lib/api";
 import { saveSession } from "@/lib/auth";
+import { useLocale } from "@/components/locale-provider";
 
 export function LoginForm() {
+  const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loginId, setLoginId] = useState("");
@@ -24,7 +26,7 @@ export function LoginForm() {
       const nextPath = searchParams.get("next") || "/dashboard";
       router.push(nextPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
+      setError(err instanceof Error ? err.message : t("Unable to sign in."));
     } finally {
       setSubmitting(false);
     }
@@ -34,7 +36,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="login">
-          Email or Phone
+          {t("Email or Phone")}
         </label>
         <input
           id="login"
@@ -42,14 +44,14 @@ export function LoginForm() {
           value={loginId}
           onChange={(event) => setLoginId(event.target.value)}
           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          placeholder="Email address or phone number"
+          placeholder={t("Email address or phone number")}
           required
         />
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-medium text-slate-700" htmlFor="password">
-          Password
+          {t("Password")}
         </label>
         <input
           id="password"
@@ -57,7 +59,7 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          placeholder="Enter your password"
+          placeholder={t("Enter your password")}
           required
         />
       </div>
@@ -73,7 +75,7 @@ export function LoginForm() {
         disabled={submitting}
         className="flex w-full items-center justify-center rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
       >
-        {submitting ? "Signing In..." : "Sign In"}
+        {submitting ? t("Signing In...") : t("Sign In")}
       </button>
     </form>
   );

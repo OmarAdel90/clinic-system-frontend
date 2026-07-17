@@ -16,6 +16,7 @@ import type {
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
+import { useLocale } from "@/components/locale-provider";
 
 type DashboardState = {
   leads: Lead[];
@@ -40,6 +41,7 @@ function formatAmount(value: number) {
 }
 
 export default function DashboardPage() {
+  const { t } = useLocale();
   const [activeTab, setActiveTab] = useState<"overview" | "clinical" | "finance" | "performance">("overview");
   const [state, setState] = useState<DashboardState>({
     leads: [],
@@ -71,12 +73,12 @@ export default function DashboardPage() {
 
         setState({ leads, visits, invoices, clinics, followups, metrics, teamMetrics, treatmentPlans, warehouses });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to load dashboard.");
+        setError(err instanceof Error ? err.message : t("Unable to load dashboard."));
       }
     }
 
     void load();
-  }, []);
+  }, [t]);
 
   const derived = useMemo(() => {
     const scheduledVisits = state.visits.filter((visit) => visit.status === "scheduled").length;
@@ -164,19 +166,19 @@ export default function DashboardPage() {
         <section className="rounded-2xl border border-[var(--line)] bg-white px-5 py-5 shadow-[var(--shadow-soft)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Today&apos;s overview</div>
-              <h2 className="text-2xl font-semibold text-slate-950">Keep the pipeline, visits, and cashflow in one glance.</h2>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{t("Today's overview")}</div>
+              <h2 className="text-2xl font-semibold text-slate-950">{t("Keep the pipeline, visits, and cashflow in one glance.")}</h2>
               <p className="max-w-3xl text-sm text-slate-600">
-                This board is trimmed down to the numbers that matter most while you are running the operation.
+                {t("This board is trimmed down to the numbers that matter most while you are running the operation.")}
               </p>
             </div>
             <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:w-[420px]">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                <div className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-700">Collected</div>
+                <div className="text-xs font-medium uppercase tracking-[0.2em] text-emerald-700">{t("Collected")}</div>
                 <div className="mt-2 text-2xl font-semibold text-emerald-950">{formatAmount(derived.collectedRevenue)}</div>
               </div>
               <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
-                <div className="text-xs font-medium uppercase tracking-[0.2em] text-amber-700">Outstanding</div>
+                <div className="text-xs font-medium uppercase tracking-[0.2em] text-amber-700">{t("Outstanding")}</div>
                 <div className="mt-2 text-2xl font-semibold text-amber-950">{formatAmount(derived.outstandingRevenue)}</div>
               </div>
             </div>
@@ -186,22 +188,22 @@ export default function DashboardPage() {
         <section className="rounded-2xl border border-[var(--line)] bg-white px-5 py-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Alerts</div>
-              <h3 className="mt-2 text-base font-semibold text-slate-950">Operational pressure</h3>
+              <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{t("Alerts")}</div>
+              <h3 className="mt-2 text-base font-semibold text-slate-950">{t("Operational pressure")}</h3>
             </div>
             <StatusBadge value={derived.criticalStock > 0 ? "attention" : "healthy"} />
           </div>
           <div className="mt-4 grid gap-3 text-sm text-slate-600">
             <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-              <span>Pending follow-ups</span>
+              <span>{t("Pending follow-ups")}</span>
               <span className="font-semibold text-slate-950">{state.followups.length}</span>
             </div>
             <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-              <span>Missed or cancelled visits</span>
+              <span>{t("Missed or cancelled visits")}</span>
               <span className="font-semibold text-slate-950">{derived.missedVisits + derived.cancelledVisits}</span>
             </div>
             <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-              <span>Critical stock rows</span>
+              <span>{t("Critical stock rows")}</span>
               <span className="font-semibold text-slate-950">{derived.criticalStock}</span>
             </div>
           </div>
@@ -234,7 +236,7 @@ export default function DashboardPage() {
                     active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  {tab.label}
+                  {t(tab.label)}
                 </button>
               );
             })}
@@ -247,24 +249,24 @@ export default function DashboardPage() {
               <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                 <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                   <div className="border-b border-[var(--line)] px-5 py-4">
-                    <h3 className="text-base font-semibold text-slate-950">Visit Pipeline</h3>
-                    <p className="mt-1 text-sm text-slate-600">Booking through completion.</p>
+                    <h3 className="text-base font-semibold text-slate-950">{t("Visit Pipeline")}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{t("Booking through completion.")}</p>
                   </div>
                   <div className="grid gap-3 px-5 py-5 sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Scheduled</div>
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{t("Scheduled")}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.scheduledVisits}</div>
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Confirmed</div>
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{t("Confirmed")}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.confirmedVisits}</div>
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Completed</div>
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{t("Completed")}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.completedVisits}</div>
                     </div>
                     <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Loss</div>
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{t("Loss")}</div>
                       <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.missedVisits + derived.cancelledVisits}</div>
                     </div>
                   </div>
@@ -272,8 +274,8 @@ export default function DashboardPage() {
 
                 <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                   <div className="border-b border-[var(--line)] px-5 py-4">
-                    <h3 className="text-base font-semibold text-slate-950">Treatment Plan Progress</h3>
-                    <p className="mt-1 text-sm text-slate-600">How many plans are still in flight versus fully completed.</p>
+                    <h3 className="text-base font-semibold text-slate-950">{t("Treatment Plan Progress")}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{t("How many plans are still in flight versus fully completed.")}</p>
                   </div>
                   <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
                     <StatCard label="Active Plans" value={derived.activePlans} hint="Plans still driving scheduled/completed visits." />
@@ -284,8 +286,8 @@ export default function DashboardPage() {
 
               <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
                 <div className="border-b border-[var(--line)] px-5 py-4">
-                  <h3 className="text-base font-semibold text-slate-950">Recent Visits</h3>
-                  <p className="mt-1 text-sm text-slate-600">Latest visit activity.</p>
+                  <h3 className="text-base font-semibold text-slate-950">{t("Recent Visits")}</h3>
+                  <p className="mt-1 text-sm text-slate-600">{t("Latest visit activity.")}</p>
                 </div>
                 <div className="space-y-3 px-5 py-5">
                   {derived.recentVisits.map((visit) => (
@@ -303,7 +305,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   ))}
-                  {derived.recentVisits.length === 0 ? <div className="text-sm text-slate-500">No visit activity returned yet.</div> : null}
+                  {derived.recentVisits.length === 0 ? <div className="text-sm text-slate-500">{t("No visit activity returned yet.")}</div> : null}
                 </div>
               </section>
             </div>

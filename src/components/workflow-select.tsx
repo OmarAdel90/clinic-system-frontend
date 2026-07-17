@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/locale-provider";
 
 type WorkflowSelectOption = {
   label: string;
@@ -26,18 +27,19 @@ export function WorkflowSelect({
   emptyLabel = "Select an option",
   allowEmpty = true,
 }: WorkflowSelectProps) {
+  const { isRTL, t } = useLocale();
   const selectedOption = options.find((option) => option.value === value) ?? null;
-  const [query, setQuery] = useState(selectedOption?.label ?? "");
+  const [query, setQuery] = useState(selectedOption ? t(selectedOption.label) : "");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    setQuery(selectedOption?.label ?? "");
-  }, [selectedOption?.label, value]);
+    setQuery(selectedOption ? t(selectedOption.label) : "");
+  }, [selectedOption, t, value]);
 
   const filteredOptions = useMemo(() => {
     const term = query.trim().toLowerCase();
     const searchable = allowEmpty
-      ? [{ label: emptyLabel, value: "" }, ...options]
+      ? [{ label: t(emptyLabel), value: "" }, ...options]
       : options;
 
     return searchable.filter((option) => {
@@ -45,12 +47,18 @@ export function WorkflowSelect({
         return true;
       }
 
-      return option.label.toLowerCase().includes(term) || option.value.toLowerCase().includes(term);
+      const translatedLabel = t(option.label).toLowerCase();
+
+      return (
+        option.label.toLowerCase().includes(term) ||
+        translatedLabel.includes(term) ||
+        option.value.toLowerCase().includes(term)
+      );
     });
-  }, [allowEmpty, emptyLabel, options, query]);
+  }, [allowEmpty, emptyLabel, options, query, t]);
 
   function selectOption(option: WorkflowSelectOption) {
-    setQuery(option.value ? option.label : "");
+    setQuery(option.value ? t(option.label) : "");
     onChange(option.value);
     setOpen(false);
   }
@@ -64,7 +72,7 @@ export function WorkflowSelect({
 
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-slate-700">{t(label)}</span>
       <div className="relative">
         <input
           value={query}
@@ -81,6 +89,7 @@ export function WorkflowSelect({
             const exact = options.find(
               (option) =>
                 option.label.toLowerCase() === nextValue.trim().toLowerCase() ||
+                t(option.label).toLowerCase() === nextValue.trim().toLowerCase() ||
                 option.value.toLowerCase() === nextValue.trim().toLowerCase(),
             );
 
@@ -101,20 +110,24 @@ export function WorkflowSelect({
 
               const selected = options.find((option) => option.value === value);
               if (selected) {
-                setQuery(selected.label);
+                setQuery(t(selected.label));
               }
             }, 120);
           }}
-          placeholder={allowEmpty ? emptyLabel : "Search"}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm leading-5 text-slate-900 outline-none transition focus:border-slate-400"
+          placeholder={t(allowEmpty ? emptyLabel : "Search")}
+          className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm leading-5 text-slate-900 outline-none transition focus:border-slate-400 ${
+            isRTL ? "pl-10 text-right" : "pr-10"
+          }`}
         />
         <button
           type="button"
           tabIndex={-1}
-          aria-label={`Open ${label} options`}
+          aria-label={`${t("Search")} ${t(label)}`}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => openDropdown(true)}
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-600"
+          className={`absolute inset-y-0 flex items-center px-3 text-slate-400 transition hover:text-slate-600 ${
+            isRTL ? "left-0" : "right-0"
+          }`}
         >
           <svg viewBox="0 0 20 20" fill="none" className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} aria-hidden="true">
             <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -131,11 +144,11 @@ export function WorkflowSelect({
                   onClick={() => selectOption(option)}
                   className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm text-slate-700 transition last:border-b-0 hover:bg-slate-50"
                 >
-                  <div className="break-words leading-5">{option.label}</div>
+                  <div className="break-words leading-5">{t(option.label)}</div>
                 </button>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-slate-500">No matches found.</div>
+              <div className="px-3 py-2 text-sm text-slate-500">{t("No matches found.")}</div>
             )}
           </div>
         ) : null}
