@@ -1187,7 +1187,7 @@ export function TreatmentPlansWorkspace() {
               ))}
             </div>
 
-            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
               {saving ? "Creating..." : "Create Treatment Plan"}
             </button>
           </form>
@@ -1467,7 +1467,7 @@ export function TreatmentPlansWorkspace() {
                                 type="button"
                                 onClick={() => void saveExistingVisit(visit.id)}
                                 disabled={savingExistingVisitId === visit.id}
-                                className="rounded-lg border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                                className="rounded-lg border border-slate-800 bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
                               >
                                 {savingExistingVisitId === visit.id ? "Saving..." : "Save Visit Changes"}
                               </button>
@@ -1538,7 +1538,7 @@ export function TreatmentPlansWorkspace() {
                                   type="button"
                                   onClick={() => void completeVisit(visit.id)}
                                   disabled={activeVisit === visit.id}
-                                  className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+                                  className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
                                 >
                                   {activeVisit === visit.id ? "Working..." : "Complete Visit"}
                                 </button>
@@ -1607,7 +1607,7 @@ export function TreatmentPlansWorkspace() {
                         value={planEditForm.notes}
                         onChange={(value) => setPlanEditForm((current) => ({ ...current, notes: value }))}
                       />
-                      <button type="submit" disabled={savingPlan} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingPlan} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingPlan ? "Saving..." : "Save Plan Changes"}
                       </button>
                     </form>
@@ -1707,7 +1707,7 @@ export function TreatmentPlansWorkspace() {
                         </div>
                       )}
 
-                      <button type="submit" disabled={savingVisit} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingVisit} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingVisit ? "Scheduling..." : "Add Visit To Plan"}
                       </button>
                     </form>
@@ -1736,3 +1736,4 @@ export function TreatmentPlansWorkspace() {
     </div>
   );
 }
+

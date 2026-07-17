@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
@@ -363,7 +363,7 @@ export function WarehousesWorkspace() {
             <form className="space-y-4" onSubmit={createWarehouse}>
               <WorkflowInput label="Warehouse Name" name="create-warehouse-name" value={createForm.name} onChange={(value) => setCreateForm((current) => ({ ...current, name: value }))} required />
               <WorkflowSelect label="Clinic" value={createForm.clinic_id} onChange={(value) => setCreateForm((current) => ({ ...current, clinic_id: value }))} options={eligibleCreateClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Warehouse"}
               </button>
             </form>
@@ -441,7 +441,7 @@ export function WarehousesWorkspace() {
                     <WorkflowInput label="Warehouse Name" name="edit-warehouse-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
                     <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={eligibleEditClinics.map((clinic) => ({ label: clinic.name, value: String(clinic.id) }))} required emptyLabel="Select clinic" />
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteWarehouse(selectedWarehouse.id)} disabled={deletingId === selectedWarehouse.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -538,3 +538,4 @@ export function WarehousesWorkspace() {
     </div>
   );
 }
+

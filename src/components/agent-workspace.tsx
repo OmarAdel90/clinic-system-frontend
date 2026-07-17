@@ -1020,7 +1020,7 @@ export function AgentWorkspace() {
                         <button
                           type="submit"
                           disabled={sending || (!composerBody.trim() && !composerMedia)}
-                          className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                          className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
                         >
                           {sending ? "Sending..." : "Send Message"}
                         </button>
@@ -1046,7 +1046,7 @@ export function AgentWorkspace() {
                         <button
                           type="submit"
                           disabled={savingLead}
-                          className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                          className="flex-1 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
                         >
                           {savingLead ? "Saving..." : "Save Lead"}
                         </button>
@@ -1084,3 +1084,4 @@ export function AgentWorkspace() {
     </div>
   );
 }
+

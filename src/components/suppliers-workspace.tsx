@@ -678,7 +678,7 @@ export function SuppliersWorkspace() {
           <form className="space-y-4" onSubmit={createSupplier}>
             <WorkflowInput label="Name" name="create-supplier-name" value={createSupplierForm.name} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, name: value }))} required />
             <WorkflowInput label="Phone Number" name="create-supplier-phone" value={createSupplierForm.phone_number} onChange={(value) => setCreateSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
-            <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
               {savingCreate ? "Saving..." : "Create Supplier"}
             </button>
           </form>
@@ -743,7 +743,7 @@ export function SuppliersWorkspace() {
                         <WorkflowInput label="Phone Number" name="edit-supplier-phone" value={editSupplierForm.phone_number} onChange={(value) => setEditSupplierForm((current) => ({ ...current, phone_number: value }))} placeholder="+201001234567" required />
                       </div>
                       <div className="flex flex-wrap items-center gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Supplier"}
                         </button>
                         <button type="button" onClick={() => void deleteSupplier(selectedSupplier.id)} disabled={deletingId === selectedSupplier.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -821,7 +821,7 @@ export function SuppliersWorkspace() {
                         <span className="font-semibold text-slate-950">{formatExactMoney(formTotal(transactionForm))}</span>
                       </div>
 
-                      <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingTransaction} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingTransaction ? "Saving..." : editingTransactionId ? "Save Batch" : "Record Batch"}
                       </button>
                     </form>
@@ -921,7 +921,7 @@ export function SuppliersWorkspace() {
                                 placeholder="Optional note"
                               />
                             </div>
-                            <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                            <button type="submit" disabled={payingId === payment.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                               {payingId === payment.id ? "Saving..." : "Add Payment"}
                             </button>
                           </form>
@@ -962,3 +962,4 @@ export function SuppliersWorkspace() {
     </div>
   );
 }
+

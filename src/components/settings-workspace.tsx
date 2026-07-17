@@ -308,7 +308,7 @@ export function SettingsWorkspace() {
               type="button"
               onClick={saveFacebookInstagram}
               disabled={savingSection === "facebook"}
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {savingSection === "facebook" ? "Saving..." : "Save Facebook & Instagram Credentials"}
             </button>
@@ -375,7 +375,7 @@ export function SettingsWorkspace() {
               type="button"
               onClick={saveWhatsapp}
               disabled={savingSection === "whatsapp"}
-              className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {savingSection === "whatsapp" ? "Saving..." : "Save WhatsApp Credentials"}
             </button>
@@ -385,3 +385,4 @@ export function SettingsWorkspace() {
     </div>
   );
 }
+

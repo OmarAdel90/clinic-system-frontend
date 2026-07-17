@@ -206,7 +206,7 @@ export function LeadsWorkspace() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+              className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
             >
               {saving ? "Creating..." : "Create Lead"}
             </button>
@@ -216,3 +216,4 @@ export function LeadsWorkspace() {
     </div>
   );
 }
+

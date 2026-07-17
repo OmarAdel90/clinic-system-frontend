@@ -8,8 +8,8 @@ import { saveSession } from "@/lib/auth";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loginId, setLoginId] = useState("super@clinic.com");
-  const [password, setPassword] = useState("password123");
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +42,7 @@ export function LoginForm() {
           value={loginId}
           onChange={(event) => setLoginId(event.target.value)}
           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          placeholder="super@clinic.com or 01000000000"
+          placeholder="Email address or phone number"
           required
         />
       </div>
@@ -57,7 +57,7 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          placeholder="password123"
+          placeholder="Enter your password"
           required
         />
       </div>
@@ -71,10 +71,11 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={submitting}
-        className="flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+        className="flex w-full items-center justify-center rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500"
       >
         {submitting ? "Signing In..." : "Sign In"}
       </button>
     </form>
   );
 }
+

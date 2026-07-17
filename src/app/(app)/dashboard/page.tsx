@@ -24,6 +24,7 @@ type DashboardState = {
   clinics: Clinic[];
   followups: FollowUp[];
   metrics: AgentMetrics | null;
+  teamMetrics: AgentMetrics[];
   treatmentPlans: TreatmentPlanRef[];
   warehouses: Warehouse[];
 };
@@ -47,6 +48,7 @@ export default function DashboardPage() {
     clinics: [],
     followups: [],
     metrics: null,
+    teamMetrics: [],
     treatmentPlans: [],
     warehouses: [],
   });
@@ -55,18 +57,19 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [leads, visits, invoices, clinics, followups, metrics, treatmentPlans, warehouses] = await Promise.all([
-          fetchResource<PaginatedResponse<Lead>>("/leads?page=1&per_page=100").then((response) => response.data),
-          fetchCollection<Visit>("/visits"),
-          fetchCollection<Invoice>("/invoices"),
-          fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data),
+        const [leads, visits, invoices, clinics, followups, metrics, teamMetrics, treatmentPlans, warehouses] = await Promise.all([
+          fetchResource<PaginatedResponse<Lead>>("/leads?page=1&per_page=100").then((response) => response.data).catch(() => []),
+          fetchCollection<Visit>("/visits").catch(() => []),
+          fetchCollection<Invoice>("/invoices").catch(() => []),
+          fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data).catch(() => []),
           fetchCollection<FollowUp>("/agent/followups").catch(() => []),
           fetchResource<AgentMetrics>("/agent/metrics").catch(() => null),
+          fetchCollection<AgentMetrics>("/agent/metrics/team").catch(() => []),
           fetchCollection<TreatmentPlanRef>("/treatment-plans").catch(() => []),
           fetchCollection<Warehouse>("/warehouses").catch(() => []),
         ]);
 
-        setState({ leads, visits, invoices, clinics, followups, metrics, treatmentPlans, warehouses });
+        setState({ leads, visits, invoices, clinics, followups, metrics, teamMetrics, treatmentPlans, warehouses });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load dashboard.");
       }
@@ -401,6 +404,28 @@ export default function DashboardPage() {
                   <StatCard label="Completed Reminders" value={state.metrics?.completed_reminders ?? 0} hint="Follow-ups already closed by the authenticated user." />
                 </div>
               </section>
+
+              {state.teamMetrics.length > 0 ? (
+                <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                  <div className="border-b border-[var(--line)] px-5 py-4">
+                    <h3 className="text-base font-semibold text-slate-950">Team Metrics</h3>
+                    <p className="mt-1 text-sm text-slate-600">Supervisor view across active agents and their recent performance.</p>
+                  </div>
+                  <div className="space-y-2 px-5 py-5">
+                    {state.teamMetrics.map((metric) => (
+                      <div key={metric.user_id} className="grid gap-3 rounded-xl border border-[var(--line)] bg-white px-4 py-4 md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.7fr))] md:items-center">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-950">{metric.user_name}</div>
+                        </div>
+                        <div className="text-sm text-slate-600">Response <span className="font-semibold text-slate-950">{metric.average_response_time ? `${metric.average_response_time} min` : "-"}</span></div>
+                        <div className="text-sm text-slate-600">Leads <span className="font-semibold text-slate-950">{metric.total_number_of_leads}</span></div>
+                        <div className="text-sm text-slate-600">Converted <span className="font-semibold text-slate-950">{metric.total_converted_leads}</span></div>
+                        <div className="text-sm text-slate-600">Attendance <span className="font-semibold text-slate-950">{metric.total_customer_attendance}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
             </div>
           ) : null}
         </div>

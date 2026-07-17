@@ -41,8 +41,12 @@ export default function LoginPage() {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Sign In</p>
               <h2 className="mt-3 text-2xl font-semibold text-slate-950">Open the operations workspace</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Connect this frontend to your Laravel API using `NEXT_PUBLIC_API_BASE_URL`.
+                Use your assigned email address or phone number to continue into the clinic workspace.
               </p>
+            </div>
+
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+              Access is role-based. Inactive accounts are blocked automatically, and only permitted sections appear after sign-in.
             </div>
 
             <Suspense fallback={<div className="text-sm text-slate-500">Loading sign-in...</div>}>

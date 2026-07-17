@@ -8,51 +8,58 @@ export type NavGroup = {
 export const navGroups: NavGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", href: "/dashboard", description: "Operational overview" }],
+    items: [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        description: "Operational overview",
+        permissions: ["view_dashboard"],
+      },
+    ],
   },
   {
     label: "CRM",
     items: [
-      { label: "Leads", href: "/leads", description: "CRM pipeline and assignments" },
+      { label: "Leads", href: "/leads", description: "CRM pipeline and assignments", permissions: ["view_any_lead"] },
       {
         label: "Lead Queue",
         href: "/lead-queue",
         description: "Round-robin queue management",
         permissions: ["view_any_call_center_queue_entry", "create_call_center_queue_entry", "delete_call_center_queue_entry"],
       },
-      { label: "Lead Statuses", href: "/lead-statuses", description: "Dynamic pipeline status management" },
-      { label: "Agent", href: "/agent", description: "Conversations, chat, and follow-through" },
-      { label: "Campaigns", href: "/campaigns", description: "Marketing performance" },
+      { label: "Lead Statuses", href: "/lead-statuses", description: "Dynamic pipeline status management", permissions: ["view_any_lead_status"] },
+      { label: "Agent", href: "/agent", description: "Conversations, chat, and follow-through", permissions: ["view_any_conversation"] },
+      { label: "Campaigns", href: "/campaigns", description: "Marketing performance", permissions: ["view_any_campaign"] },
     ],
   },
   {
     label: "Clinical",
     items: [
-      { label: "Treatment Plans", href: "/treatment-plans", description: "Primary care-plan workspace and visit bundles" },
-      { label: "Visits", href: "/visits", description: "Operational queue for scheduling, confirmations, and exceptions" },
+      { label: "Treatment Plans", href: "/treatment-plans", description: "Primary care-plan workspace and visit bundles", permissions: ["view_any_treatment_plan"] },
+      { label: "Visits", href: "/visits", description: "Operational queue for scheduling, confirmations, and exceptions", permissions: ["view_any_visit"] },
       {
         label: "Reports",
         href: "/reports",
         description: "Doctor notes, visit outcomes, and completed care records",
-        permissions: ["view_any_report", "view_report", "update_report"],
+        permissions: ["view_any_report"],
       },
       {
         label: "Medical Records",
         href: "/medical-records",
         description: "Patient files and clinical attachments",
-        permissions: ["view_any_medical_record", "view_medical_record", "create_medical_record", "update_medical_record", "delete_medical_record"],
+        permissions: ["view_any_medical_record"],
       },
-      { label: "Patient Feedback", href: "/patient-feedback", description: "Post-visit sentiment and follow-through" },
-      { label: "Invoices", href: "/invoices", description: "Billing and payments" },
+      { label: "Patient Feedback", href: "/patient-feedback", description: "Post-visit sentiment and follow-through", permissions: ["view_any_patient_feedback"] },
+      { label: "Invoices", href: "/invoices", description: "Billing and payments", permissions: ["view_any_invoice"] },
     ],
   },
   {
     label: "Operations",
     items: [
-      { label: "Clinics", href: "/clinics", description: "Branches and services" },
-      { label: "Warehouses", href: "/warehouses", description: "Inventory and stock" },
-      { label: "Pharmaceuticals", href: "/pharmaceuticals", description: "Medication catalog" },
-      { label: "Suppliers", href: "/suppliers", description: "Vendors, supplier batches, and payments" },
+      { label: "Clinics", href: "/clinics", description: "Branches and services", permissions: ["view_any_clinic"] },
+      { label: "Warehouses", href: "/warehouses", description: "Inventory and stock", permissions: ["view_any_warehouse"] },
+      { label: "Pharmaceuticals", href: "/pharmaceuticals", description: "Medication catalog", permissions: ["view_any_pharmaceutical"] },
+      { label: "Suppliers", href: "/suppliers", description: "Vendors, supplier batches, and payments", permissions: ["view_any_supplier"] },
     ],
   },
   {

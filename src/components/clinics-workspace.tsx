@@ -541,7 +541,7 @@ export function ClinicsWorkspace() {
               <WorkflowTextarea label="Departments" value={createForm.departments} onChange={(value) => setCreateForm((current) => ({ ...current, departments: value }))} placeholder="One per line or comma separated" />
               {renderServiceEditor(createForm, setCreateForm)}
               {renderDoctorPicker(createForm, setCreateForm)}
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Clinic"}
               </button>
             </form>
@@ -599,7 +599,7 @@ export function ClinicsWorkspace() {
                     {renderServiceEditor(editForm, setEditForm)}
                     {renderDoctorPicker(editForm, setEditForm)}
                     <div className="flex flex-wrap gap-3">
-                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
                       </button>
                       <button type="button" onClick={() => void deleteClinic(selectedClinic.id)} disabled={deletingId === selectedClinic.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -616,3 +616,4 @@ export function ClinicsWorkspace() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
@@ -293,7 +293,7 @@ export function LeadStatusesWorkspace() {
                 <WorkflowSelect label="Qualified" value={createForm.is_qualified} onChange={(value) => setCreateForm((current) => ({ ...current, is_qualified: value }))} options={[{ label: "No", value: "false" }, { label: "Yes", value: "true" }]} />
                 <WorkflowSelect label="Active" value={createForm.is_active} onChange={(value) => setCreateForm((current) => ({ ...current, is_active: value }))} options={[{ label: "Yes", value: "true" }, { label: "No", value: "false" }]} />
               </div>
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Creating..." : "Create Status"}
               </button>
             </form>
@@ -325,3 +325,4 @@ export function LeadStatusesWorkspace() {
     </div>
   );
 }
+

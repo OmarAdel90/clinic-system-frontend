@@ -411,7 +411,7 @@ export function ReportsWorkspace() {
                       <WorkflowTextarea label="Treatment Notes" value={editForm.treatment_notes} onChange={(value) => setEditForm((current) => ({ ...current, treatment_notes: value }))} placeholder="Treatment notes" />
                       <WorkflowTextarea label="Report Body" value={editForm.body} onChange={(value) => setEditForm((current) => ({ ...current, body: value }))} placeholder="Additional doctor notes and outcome details" />
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Changes"}
                         </button>
                       </div>
@@ -426,3 +426,4 @@ export function ReportsWorkspace() {
     </div>
   );
 }
+

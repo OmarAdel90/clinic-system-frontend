@@ -536,7 +536,7 @@ export function VisitsWorkspace() {
               />
             </div>
             <WorkflowInput label="Visit Date" name="visit_date" type="datetime-local" value={form.visit_date} onChange={(value) => setForm((current) => ({ ...current, visit_date: value }))} required />
-            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+            <button type="submit" disabled={saving} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
               {saving ? "Scheduling..." : "Schedule Visit"}
             </button>
           </form>
@@ -689,7 +689,7 @@ export function VisitsWorkspace() {
                         <WorkflowInput label="Visit Date" name="edit-visit-date" type="datetime-local" value={editForm.visit_date} onChange={(value) => setEditForm((current) => ({ ...current, visit_date: value }))} required />
                       </div>
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Visit Changes"}
                         </button>
                         <button type="button" onClick={() => void deleteVisit(selectedVisit.id)} disabled={deletingVisit === selectedVisit.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -754,7 +754,7 @@ export function VisitsWorkspace() {
                               {completeForm.supplies_used.length === 0 ? <div className="text-sm text-slate-500">If left empty, the backend will use the reserved supplies automatically.</div> : null}
                             </div>
 
-                            <button type="button" onClick={() => void completeVisit(selectedVisit.id)} disabled={activeVisit === selectedVisit.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                            <button type="button" onClick={() => void completeVisit(selectedVisit.id)} disabled={activeVisit === selectedVisit.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                               {activeVisit === selectedVisit.id ? "Working..." : "Complete Visit"}
                             </button>
                           </div>
@@ -775,3 +775,4 @@ export function VisitsWorkspace() {
     </div>
   );
 }
+

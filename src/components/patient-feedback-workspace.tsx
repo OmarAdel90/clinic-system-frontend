@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
@@ -313,7 +313,7 @@ export function PatientFeedbackWorkspace() {
                 </div>
               ) : null}
               <WorkflowTextarea label="Feedback Body" value={createForm.feedback_body} onChange={(value) => setCreateForm((current) => ({ ...current, feedback_body: value }))} placeholder="Patient comments, satisfaction notes, concerns, or follow-up sentiment" />
-              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+              <button type="submit" disabled={savingCreate} className="w-full rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                 {savingCreate ? "Saving..." : "Create Feedback"}
               </button>
             </form>
@@ -383,7 +383,7 @@ export function PatientFeedbackWorkspace() {
                       <WorkflowSelect label="Clinic" value={editForm.clinic_id} onChange={(value) => setEditForm((current) => ({ ...current, clinic_id: value }))} options={editClinicOptions} required allowEmpty={false} />
                       <WorkflowTextarea label="Feedback Body" value={editForm.feedback_body} onChange={(value) => setEditForm((current) => ({ ...current, feedback_body: value }))} />
                       <div className="flex flex-wrap gap-3">
-                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                        <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                           {savingEdit ? "Saving..." : "Save Changes"}
                         </button>
                         <button type="button" onClick={() => void deleteFeedback(selectedFeedback.id)} disabled={deletingId === selectedFeedback.id} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -401,3 +401,4 @@ export function PatientFeedbackWorkspace() {
     </div>
   );
 }
+

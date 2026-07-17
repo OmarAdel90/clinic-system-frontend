@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { fetchCollection, mutateJson } from "@/lib/api";
@@ -197,7 +197,7 @@ export function InvoicesWorkspace() {
                       placeholder="0.00"
                       required
                     />
-                    <button type="submit" disabled={activeInvoice === invoice.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                    <button type="submit" disabled={activeInvoice === invoice.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                       {activeInvoice === invoice.id ? "Saving..." : "Record Payment"}
                     </button>
                   </form>
@@ -308,7 +308,7 @@ export function InvoicesWorkspace() {
                         placeholder="0.00"
                         required
                       />
-                      <button type="submit" disabled={activeInvoice === selectedInvoice.id} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
+                      <button type="submit" disabled={activeInvoice === selectedInvoice.id} className="rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {activeInvoice === selectedInvoice.id ? "Saving..." : "Record Payment"}
                       </button>
                     </form>
@@ -322,3 +322,4 @@ export function InvoicesWorkspace() {
     </div>
   );
 }
+

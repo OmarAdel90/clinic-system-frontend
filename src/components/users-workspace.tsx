@@ -473,7 +473,7 @@ export function UsersWorkspace() {
                 <Panel title="User Details" description="Update operational details and role assignment for this account without leaving the directory.">
                   <form className="space-y-4" onSubmit={updateUser}>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <WorkflowInput label="Name" name="edit-user-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
+                    <WorkflowInput label="Name" name="edit-user-name" value={editForm.name} onChange={(value) => setEditForm((current) => ({ ...current, name: value }))} required />
                       <WorkflowInput label="Email" name="edit-user-email" value={editForm.email} onChange={(value) => setEditForm((current) => ({ ...current, email: value }))} type="email" required />
                       <WorkflowInput label="Password" name="edit-user-password" value={editForm.password} onChange={(value) => setEditForm((current) => ({ ...current, password: value }))} type="password" placeholder="Leave blank to keep current password" />
                       <WorkflowInput label="Title" name="edit-user-title" value={editForm.title} onChange={(value) => setEditForm((current) => ({ ...current, title: value }))} />
@@ -492,10 +492,16 @@ export function UsersWorkspace() {
                         type="checkbox"
                         checked={editForm.is_active}
                         onChange={(event) => setEditForm((current) => ({ ...current, is_active: event.target.checked }))}
+                        disabled={selectedUserIsProtectedAdmin}
                         className="h-4 w-4 rounded border-slate-300"
                       />
-                      Active account
+                      {selectedUserIsProtectedAdmin ? "Seeded admin must remain active" : "Active account"}
                     </label>
+                    {selectedUserIsProtectedAdmin ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        The seeded admin account is protected. It cannot be deleted, deactivated, or moved away from its reserved email.
+                      </div>
+                    ) : null}
                     <div className="flex flex-wrap gap-3">
                       <button type="submit" disabled={savingEdit} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500">
                         {savingEdit ? "Saving..." : "Save Changes"}
