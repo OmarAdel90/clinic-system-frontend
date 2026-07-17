@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { Clinic, TreatmentPlanRef, Visit, Warehouse, WarehouseInventory } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -13,6 +13,10 @@ import { PaginationControls } from "@/components/pagination-controls";
 type WarehouseDetailsView = "overview" | "inventory" | "demand" | "settings";
 import { formatLocalDateTime } from "@/lib/time";
 const WAREHOUSES_PAGE_SIZE = 10;
+
+type PaginatedResponse<T> = {
+  data: T[];
+};
 
 type InventoryPressure = {
   sku: string;
@@ -175,7 +179,7 @@ export function WarehousesWorkspace() {
     try {
       const [warehouseRows, clinicRows, visitRows, planRows] = await Promise.all([
         fetchCollection<Warehouse>("/warehouses"),
-        fetchCollection<Clinic>("/clinics"),
+        fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data),
         fetchCollection<Visit>("/visits"),
         fetchCollection<TreatmentPlanRef>("/treatment-plans"),
       ]);

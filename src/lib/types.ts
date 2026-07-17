@@ -121,6 +121,7 @@ export type MetaAvailableCampaign = {
 export type Lead = {
   id: number;
   name?: string | null;
+  arabic_name?: string | null;
   phone?: string | null;
   platform?: string | null;
   campaign_id?: string | number | null;
@@ -422,11 +423,24 @@ export type TreatmentPlanRef = {
 
 export type VisitReport = {
   id: number;
+  clinic_id?: number | null;
+  user_id?: number | null;
+  lead_id?: number | null;
+  visit_id?: number | null;
+  visit_date?: string | null;
   diagnosis?: string | null;
   treatment_notes?: string | null;
   body?: string | null;
+  status?: string | null;
+  cost_known?: boolean | null;
   supplies_used?: SupplyLine[] | null;
+  lead?: Lead | null;
+  user?: User | null;
+  clinic?: Clinic | null;
+  visit?: Visit | null;
   invoice?: Invoice | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type PatientFeedback = {

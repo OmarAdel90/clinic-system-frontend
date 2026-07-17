@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { Clinic, Lead, Pharmaceutical, SupplyLine, TreatmentPlanRef, User, Visit, Warehouse, WarehouseInventory } from "@/lib/types";
 import { formatLocalDateTime, formatRelativeDateLabel, getBrowserTimeZone } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
@@ -68,6 +68,10 @@ type SearchableOption = {
 type TreatmentPlanView = "overview" | "visits" | "edit" | "add-visit" | "actions";
 const TREATMENT_PLANS_PAGE_SIZE = 8;
 const PLAN_VISITS_PAGE_SIZE = 4;
+
+type PaginatedResponse<T> = {
+  data: T[];
+};
 
 const initialSupplyForm: SupplyForm = {
   sku: "",
@@ -532,9 +536,9 @@ export function TreatmentPlansWorkspace() {
     try {
       const [planRows, leadRows, userRows, clinicRows, pharmaceuticalRows, warehouseRows] = await Promise.all([
         fetchCollection<TreatmentPlanRef>("/treatment-plans"),
-        fetchCollection<Lead>("/leads"),
-        fetchCollection<User>("/users"),
-        fetchCollection<Clinic>("/clinics"),
+        fetchResource<PaginatedResponse<Lead>>("/leads?page=1&per_page=100").then((response) => response.data),
+        fetchResource<PaginatedResponse<User>>("/users?page=1&per_page=100").then((response) => response.data),
+        fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data),
         fetchCollection<Pharmaceutical>("/pharmaceuticals"),
         fetchCollection<Warehouse>("/warehouses"),
       ]);

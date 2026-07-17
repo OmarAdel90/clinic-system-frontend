@@ -31,6 +31,12 @@ export const navGroups: NavGroup[] = [
       { label: "Treatment Plans", href: "/treatment-plans", description: "Primary care-plan workspace and visit bundles" },
       { label: "Visits", href: "/visits", description: "Operational queue for scheduling, confirmations, and exceptions" },
       {
+        label: "Reports",
+        href: "/reports",
+        description: "Doctor notes, visit outcomes, and completed care records",
+        permissions: ["view_any_report", "view_report", "update_report"],
+      },
+      {
         label: "Medical Records",
         href: "/medical-records",
         description: "Patient files and clinical attachments",

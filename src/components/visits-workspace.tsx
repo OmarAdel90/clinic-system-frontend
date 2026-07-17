@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { Clinic, Lead, SupplyLine, User, Visit } from "@/lib/types";
 import { formatLocalDateTime, formatRelativeDateLabel, getBrowserTimeZone } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
@@ -65,6 +65,10 @@ const initialCompleteForm: CompleteForm = {
 type VisitDetailsView = "overview" | "edit" | "supplies" | "complete";
 
 const VISITS_PAGE_SIZE = 10;
+
+type PaginatedResponse<T> = {
+  data: T[];
+};
 
 function toSupplyLines(rows: SupplyForm[]): SupplyLine[] {
   return rows
@@ -196,9 +200,9 @@ export function VisitsWorkspace() {
     try {
       const [visitRows, leadRows, userRows, clinicRows] = await Promise.all([
         fetchCollection<Visit>("/visits"),
-        fetchCollection<Lead>("/leads"),
-        fetchCollection<User>("/users"),
-        fetchCollection<Clinic>("/clinics"),
+        fetchResource<PaginatedResponse<Lead>>("/leads?page=1&per_page=100").then((response) => response.data),
+        fetchResource<PaginatedResponse<User>>("/users?page=1&per_page=100").then((response) => response.data),
+        fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data),
       ]);
 
       setVisits(visitRows);

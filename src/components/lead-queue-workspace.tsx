@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { CallCenterQueueEntry, User } from "@/lib/types";
 import { formatLocalDateTime } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { WorkflowInput } from "@/components/workflow-input";
 import { StatCard } from "@/components/stat-card";
+
+type PaginatedResponse<T> = {
+  data: T[];
+};
 
 export function LeadQueueWorkspace() {
   const [queue, setQueue] = useState<CallCenterQueueEntry[]>([]);
@@ -74,7 +78,7 @@ export function LeadQueueWorkspace() {
     try {
       const [queuePayload, usersPayload] = await Promise.all([
         fetchCollection<CallCenterQueueEntry>("/call-center/queue"),
-        fetchCollection<User>("/users"),
+        fetchResource<PaginatedResponse<User>>("/users?page=1&per_page=100").then((response) => response.data),
       ]);
 
       setQueue(

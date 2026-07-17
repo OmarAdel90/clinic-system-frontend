@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { fetchCollection, mutateJson, removeResource } from "@/lib/api";
+import { fetchCollection, fetchResource, mutateJson, removeResource } from "@/lib/api";
 import type { Clinic, Lead, PatientFeedback } from "@/lib/types";
 import { formatLocalDateTime, getBrowserTimeZone } from "@/lib/time";
 import { PageHeader } from "@/components/page-header";
@@ -26,6 +26,10 @@ const initialForm: FeedbackForm = {
   feedback_body: "",
 };
 const FEEDBACK_PAGE_SIZE = 10;
+
+type PaginatedResponse<T> = {
+  data: T[];
+};
 
 function toForm(feedback?: PatientFeedback | null): FeedbackForm {
   if (!feedback) {
@@ -132,8 +136,8 @@ export function PatientFeedbackWorkspace() {
     try {
       const [feedbackPayload, leadPayload, clinicPayload] = await Promise.all([
         fetchCollection<PatientFeedback>("/patient/feedback"),
-        fetchCollection<Lead>("/leads"),
-        fetchCollection<Clinic>("/clinics"),
+        fetchResource<PaginatedResponse<Lead>>("/leads?page=1&per_page=100").then((response) => response.data),
+        fetchResource<PaginatedResponse<Clinic>>("/clinics?page=1&per_page=100").then((response) => response.data),
       ]);
 
       setFeedbackRows(feedbackPayload);
