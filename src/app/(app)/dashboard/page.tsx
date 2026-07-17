@@ -39,6 +39,7 @@ function formatAmount(value: number) {
 }
 
 export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<"overview" | "clinical" | "finance" | "performance">("overview");
   const [state, setState] = useState<DashboardState>({
     leads: [],
     visits: [],
@@ -211,158 +212,199 @@ export default function DashboardPage() {
         <StatCard label="Active Plans" value={derived.activePlans} hint="Treatment plans that are still in progress." />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Visit Pipeline</h3>
-            <p className="mt-1 text-sm text-slate-600">Current flow from booking through completion.</p>
+      <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
+        <div className="border-b border-[var(--line)] px-5 py-4">
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: "overview", label: "Overview" },
+              { key: "clinical", label: "Clinical" },
+              { key: "finance", label: "Finance" },
+              { key: "performance", label: "Performance" },
+            ].map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    active ? "bg-slate-900 text-white" : "border border-[var(--line)] bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="grid gap-3 px-5 py-5 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Scheduled</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.scheduledVisits}</div>
-            </div>
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Confirmed</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.confirmedVisits}</div>
-            </div>
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Completed</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.completedVisits}</div>
-            </div>
-            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Loss</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.missedVisits + derived.cancelledVisits}</div>
-            </div>
-          </div>
-        </section>
+        </div>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Billing Recovery</h3>
-            <p className="mt-1 text-sm text-slate-600">A tighter view of revenue and collection health.</p>
-          </div>
-          <div className="grid gap-3 px-5 py-5">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-                <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Total Revenue</div>
-                <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.totalRevenue)}</div>
-              </div>
-              <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-                <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Collected</div>
-                <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.collectedRevenue)}</div>
-              </div>
-              <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4">
-                <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Outstanding</div>
-                <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.outstandingRevenue)}</div>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <StatCard label="Unpaid" value={derived.unpaidInvoices} hint="Invoices with no payment yet." />
-              <StatCard label="Partial" value={derived.partialInvoices} hint="Invoices that still have an open balance." />
-              <StatCard label="Paid" value={derived.paidInvoices} hint="Invoices that are fully settled." />
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Clinic Load & Revenue</h3>
-            <p className="mt-1 text-sm text-slate-600">Top clinics by activity, plan volume, and billing.</p>
-          </div>
-          <div className="space-y-2 px-5 py-4">
-            {derived.clinicBreakdown.slice(0, 6).map((clinic) => (
-              <div key={clinic.id} className="grid gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-4 md:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,0.7fr))] md:items-center">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-950">{clinic.name}</div>
-                </div>
-                <div className="text-sm text-slate-600">Visits <span className="font-semibold text-slate-950">{clinic.visits}</span></div>
-                <div className="text-sm text-slate-600">Plans <span className="font-semibold text-slate-950">{clinic.plans}</span></div>
-                <div className="text-sm text-slate-600">Revenue <span className="font-semibold text-slate-950">{formatAmount(clinic.revenue)}</span></div>
-              </div>
-            ))}
-            {derived.clinicBreakdown.length === 0 ? <div className="text-sm text-slate-500">No clinic reporting data yet.</div> : null}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Recent Visits</h3>
-            <p className="mt-1 text-sm text-slate-600">Latest operational movement across the booking flow.</p>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            {derived.recentVisits.map((visit) => (
-              <div key={visit.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">{visit.visit_number || `Visit #${visit.id}`}</div>
-                    <div className="mt-1 text-sm text-slate-600">{visit.lead?.name || visit.lead?.profile_name || `Lead #${visit.lead_id}`}</div>
+        <div className="px-5 py-5">
+          {activeTab === "overview" ? (
+            <div className="space-y-6">
+              <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                  <div className="border-b border-[var(--line)] px-5 py-4">
+                    <h3 className="text-base font-semibold text-slate-950">Visit Pipeline</h3>
+                    <p className="mt-1 text-sm text-slate-600">Current flow from booking through completion.</p>
                   </div>
-                  <StatusBadge value={visit.status} />
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-                  <div>{visit.clinic?.name || `Clinic #${visit.clinic_id ?? "-"}`}</div>
-                  <div>{formatLocalDateTime(visit.scheduled_date || visit.visit_date)}</div>
-                </div>
-              </div>
-            ))}
-            {derived.recentVisits.length === 0 ? <div className="text-sm text-slate-500">No visit activity returned yet.</div> : null}
-          </div>
-        </section>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Recent Invoices</h3>
-            <p className="mt-1 text-sm text-slate-600">Latest billing output tied to completed care.</p>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            {derived.recentInvoices.map((invoice) => (
-              <div key={invoice.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-950">{invoice.invoice_number || `Invoice #${invoice.id}`}</div>
-                    <div className="mt-1 truncate text-sm text-slate-600">{invoice.lead?.name || invoice.lead?.profile_name || `Lead #${invoice.lead_id ?? "-"}`}</div>
+                  <div className="grid gap-3 px-5 py-5 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Scheduled</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.scheduledVisits}</div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Confirmed</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.confirmedVisits}</div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Completed</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.completedVisits}</div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Loss</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{derived.missedVisits + derived.cancelledVisits}</div>
+                    </div>
                   </div>
-                  <StatusBadge value={invoice.status} />
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
-                  <div>Total {formatAmount(Number(invoice.total_cost ?? 0))}</div>
-                  <div>Paid {formatAmount(Number(invoice.amount_paid ?? 0))}</div>
-                  <div>{formatLocalDateTime(invoice.issued_at)}</div>
-                </div>
+                </section>
+
+                <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                  <div className="border-b border-[var(--line)] px-5 py-4">
+                    <h3 className="text-base font-semibold text-slate-950">Treatment Plan Progress</h3>
+                    <p className="mt-1 text-sm text-slate-600">How many plans are still in flight versus fully completed.</p>
+                  </div>
+                  <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+                    <StatCard label="Active Plans" value={derived.activePlans} hint="Plans still driving scheduled/completed visits." />
+                    <StatCard label="Completed Plans" value={derived.completedPlans} hint="Plans whose required visit count has been fulfilled." />
+                  </div>
+                </section>
               </div>
-            ))}
-            {derived.recentInvoices.length === 0 ? <div className="text-sm text-slate-500">No invoice activity returned yet.</div> : null}
-          </div>
-        </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Treatment Plan Progress</h3>
-            <p className="mt-1 text-sm text-slate-600">How many plans are still in flight versus fully completed.</p>
-          </div>
-          <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-            <StatCard label="Active Plans" value={derived.activePlans} hint="Plans still driving scheduled/completed visits." />
-            <StatCard label="Completed Plans" value={derived.completedPlans} hint="Plans whose required visit count has been fulfilled." />
-          </div>
-        </section>
+              <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                <div className="border-b border-[var(--line)] px-5 py-4">
+                  <h3 className="text-base font-semibold text-slate-950">Recent Visits</h3>
+                  <p className="mt-1 text-sm text-slate-600">Latest operational movement across the booking flow.</p>
+                </div>
+                <div className="space-y-3 px-5 py-5">
+                  {derived.recentVisits.map((visit) => (
+                    <div key={visit.id} className="rounded-xl border border-[var(--line)] bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-slate-950">{visit.visit_number || `Visit #${visit.id}`}</div>
+                          <div className="mt-1 text-sm text-slate-600">{visit.lead?.name || visit.lead?.profile_name || `Lead #${visit.lead_id}`}</div>
+                        </div>
+                        <StatusBadge value={visit.status} />
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+                        <div>{visit.clinic?.name || `Clinic #${visit.clinic_id ?? "-"}`}</div>
+                        <div>{formatLocalDateTime(visit.scheduled_date || visit.visit_date)}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {derived.recentVisits.length === 0 ? <div className="text-sm text-slate-500">No visit activity returned yet.</div> : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
 
-        <section className="rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow-soft)]">
-          <div className="border-b border-[var(--line)] px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-950">Personal Performance Snapshot</h3>
-            <p className="mt-1 text-sm text-slate-600">Authenticated-user metrics still visible inside the broader manager dashboard.</p>
-          </div>
-          <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
-            <StatCard label="Average Response" value={state.metrics?.average_response_time ? `${state.metrics.average_response_time} min` : "-"} hint="Average first response time from inbound to outbound reply." />
-            <StatCard label="Attendance" value={state.metrics?.total_customer_attendance ?? 0} hint="Completed patient visits linked to the current operator." />
-            <StatCard label="Completed Reminders" value={state.metrics?.completed_reminders ?? 0} hint="Follow-ups already closed by the authenticated user." />
-          </div>
-        </section>
-      </div>
+          {activeTab === "clinical" ? (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                <div className="border-b border-[var(--line)] px-5 py-4">
+                  <h3 className="text-base font-semibold text-slate-950">Clinic Load & Revenue</h3>
+                  <p className="mt-1 text-sm text-slate-600">Top clinics by activity, plan volume, and billing.</p>
+                </div>
+                <div className="space-y-2 px-5 py-4">
+                  {derived.clinicBreakdown.slice(0, 6).map((clinic) => (
+                    <div key={clinic.id} className="grid gap-3 rounded-xl border border-[var(--line)] bg-white px-4 py-4 md:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,0.7fr))] md:items-center">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-950">{clinic.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-600">Visits <span className="font-semibold text-slate-950">{clinic.visits}</span></div>
+                      <div className="text-sm text-slate-600">Plans <span className="font-semibold text-slate-950">{clinic.plans}</span></div>
+                      <div className="text-sm text-slate-600">Revenue <span className="font-semibold text-slate-950">{formatAmount(clinic.revenue)}</span></div>
+                    </div>
+                  ))}
+                  {derived.clinicBreakdown.length === 0 ? <div className="text-sm text-slate-500">No clinic reporting data yet.</div> : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeTab === "finance" ? (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                <div className="border-b border-[var(--line)] px-5 py-4">
+                  <h3 className="text-base font-semibold text-slate-950">Billing Recovery</h3>
+                  <p className="mt-1 text-sm text-slate-600">A tighter view of revenue and collection health.</p>
+                </div>
+                <div className="grid gap-3 px-5 py-5">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Total Revenue</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.totalRevenue)}</div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Collected</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.collectedRevenue)}</div>
+                    </div>
+                    <div className="rounded-xl border border-[var(--line)] bg-white px-4 py-4">
+                      <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Outstanding</div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-950">{formatAmount(derived.outstandingRevenue)}</div>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <StatCard label="Unpaid" value={derived.unpaidInvoices} hint="Invoices with no payment yet." />
+                    <StatCard label="Partial" value={derived.partialInvoices} hint="Invoices that still have an open balance." />
+                    <StatCard label="Paid" value={derived.paidInvoices} hint="Invoices that are fully settled." />
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                <div className="border-b border-[var(--line)] px-5 py-4">
+                  <h3 className="text-base font-semibold text-slate-950">Recent Invoices</h3>
+                  <p className="mt-1 text-sm text-slate-600">Latest billing output tied to completed care.</p>
+                </div>
+                <div className="space-y-3 px-5 py-5">
+                  {derived.recentInvoices.map((invoice) => (
+                    <div key={invoice.id} className="rounded-xl border border-[var(--line)] bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-950">{invoice.invoice_number || `Invoice #${invoice.id}`}</div>
+                          <div className="mt-1 truncate text-sm text-slate-600">{invoice.lead?.name || invoice.lead?.profile_name || `Lead #${invoice.lead_id ?? "-"}`}</div>
+                        </div>
+                        <StatusBadge value={invoice.status} />
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-slate-500 md:grid-cols-3">
+                        <div>Total {formatAmount(Number(invoice.total_cost ?? 0))}</div>
+                        <div>Paid {formatAmount(Number(invoice.amount_paid ?? 0))}</div>
+                        <div>{formatLocalDateTime(invoice.issued_at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {derived.recentInvoices.length === 0 ? <div className="text-sm text-slate-500">No invoice activity returned yet.</div> : null}
+                </div>
+              </section>
+            </div>
+          ) : null}
+
+          {activeTab === "performance" ? (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+                <div className="border-b border-[var(--line)] px-5 py-4">
+                  <h3 className="text-base font-semibold text-slate-950">Personal Performance Snapshot</h3>
+                  <p className="mt-1 text-sm text-slate-600">Authenticated-user metrics still visible inside the broader manager dashboard.</p>
+                </div>
+                <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+                  <StatCard label="Average Response" value={state.metrics?.average_response_time ? `${state.metrics.average_response_time} min` : "-"} hint="Average response time across recent conversations." />
+                  <StatCard label="Attendance" value={state.metrics?.total_customer_attendance ?? 0} hint="Completed patient visits linked to the current operator." />
+                  <StatCard label="Completed Reminders" value={state.metrics?.completed_reminders ?? 0} hint="Follow-ups already closed by the authenticated user." />
+                </div>
+              </section>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
